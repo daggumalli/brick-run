@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>BRICK RUN</title>
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;background:#000;font-family:'Lilita One','Arial Black',sans-serif}
+#renderCanvas{width:100%;height:100%;display:block;outline:none}
+#hud{position:absolute;top:0;left:0;width:100%;pointer-events:none;z-index:10}
+#hud-top{display:flex;justify-content:space-between;padding:12px 16px 0;font-size:18px;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,0.6)}
+.overlay{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);pointer-events:auto;transition:opacity 0.3s;z-index:20}
+.overlay.hidden{opacity:0;pointer-events:none}
+.overlay h1{font-size:clamp(40px,14vw,72px);color:#FFCC00;text-shadow:0 4px 12px rgba(0,0,0,0.6)}
+.overlay h2{font-size:clamp(14px,4vw,20px);color:#fff;font-weight:normal;margin-bottom:24px}
+.overlay .stats{font-size:18px;color:#FFCC00;margin:5px 0}
+.overlay .stats.white{color:#fff}
+.overlay .tap-prompt{font-size:clamp(18px,5vw,28px);color:#fff;margin-top:28px;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:0.6;transform:translateY(0)}50%{opacity:1;transform:translateY(-6px)}}
+.gameover-title{color:#E04545!important}
+#shape-bar{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:11;pointer-events:none}
+.si{width:36px;height:36px;border:2px solid rgba(255,255,255,0.25);border-radius:6px;display:flex;align-items:center;justify-content:center;opacity:0.35;background:rgba(0,0,0,0.2);transition:all 0.15s}
+.si.active{opacity:1;border-color:#fff;transform:scale(1.15);background:rgba(0,0,0,0.35)}
+.si canvas{width:28px;height:28px}
+.color-dot{width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);opacity:0.4;transition:all 0.15s}
+.color-dot.active{opacity:1;border-color:#fff;transform:scale(1.3);box-shadow:0 0 8px rgba(255,255,255,0.5)}
+#divider-line{position:absolute;top:15%;left:50%;width:2px;height:70%;background:rgba(255,255,255,0.1);pointer-events:none;z-index:8}
+#combo-text{position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);font-size:32px;color:#F5A623;text-shadow:0 2px 8px rgba(0,0,0,0.6);pointer-events:none;z-index:11;opacity:0;transition:opacity 0.3s}
+#score-popup{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);font-size:26px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.6);pointer-events:none;z-index:11;opacity:0}
+#flash-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9;opacity:0;transition:opacity 0.15s}
+</style>
+</head>
+<body>
+<canvas id="renderCanvas"></canvas>
+<div id="hud"><div id="hud-top"><span id="wall-counter">WALL 1</span><span id="coin-counter">💰 0</span><span id="score-display">0</span></div></div>
+<div id="shape-bar"></div>
+<div id="tap-hint-left" style="position:absolute;bottom:70px;left:15%;font-size:16px;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,0.6);pointer-events:none;z-index:11;opacity:0;transition:opacity 0.5s">◀ COLOR</div>
+<div id="tap-hint-right" style="position:absolute;bottom:70px;right:15%;font-size:16px;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,0.6);pointer-events:none;z-index:11;opacity:0;transition:opacity 0.5s">SHAPE ▶</div>
+<div id="tap-hint-center" style="position:absolute;bottom:70px;left:50%;transform:translateX(-50%);font-size:20px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.6);pointer-events:none;z-index:11;animation:pulse 1s ease-in-out infinite;transition:opacity 0.5s">TAP!</div>
+<div id="color-bar" style="position:absolute;bottom:60px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:11;pointer-events:none;opacity:0;transition:opacity 0.5s"></div>
+<div id="combo-text"></div>
+<div id="score-popup"></div>
+<div id="flash-overlay"></div>
+<div id="divider-line"></div>
+<div class="overlay" id="start-screen"><h1>BRICK RUN</h1><h2>Match the brick. Break the wall!</h2><div class="stats" id="start-best">BEST: 0</div><div class="stats" id="start-coins">TOTAL COINS: 0</div><div class="tap-prompt">TAP TO PLAY</div></div>
+<div class="overlay hidden" id="gameover-screen"><h1 class="gameover-title">OH NO!</h1><div class="stats white" id="go-score">SCORE: 0</div><div class="stats white" id="go-walls">WALLS: 0</div><div class="stats" id="go-best">BEST: 0</div><div class="stats" id="go-newbest" style="display:none">⭐ NEW BEST! ⭐</div><div class="tap-prompt">TAP TO RETRY</div></div>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script>
+// ============================================================
+// BRICK RUN — Babylon.js Version
+// ============================================================
+const SHAPES=[{name:'SINGLE',cells:[[0,0]],w:1,h:1},{name:'BAR',cells:[[0,0],[1,0],[2,0]],w:3,h:1},{name:'SQUARE',cells:[[0,0],[1,0],[0,1],[1,1]],w:2,h:2},{name:'L',cells:[[0,0],[0,1],[1,1]],w:2,h:2},{name:'T',cells:[[0,0],[1,0],[2,0],[1,1]],w:3,h:2}];
+const BCOLS=[new BABYLON.Color3(0.8,0.15,0.13),new BABYLON.Color3(0.13,0.33,0.67),new BABYLON.Color3(0.93,0.67,0.13),new BABYLON.Color3(0.2,0.67,0.33),new BABYLON.Color3(0.6,0.25,0.73),new BABYLON.Color3(0.87,0.4,0.2)];
+const BCOLS_HEX=['#CC2233','#2255AA','#EEAA22','#33AA55','#9944BB','#DD6633'];
+const TIERS=[[5,1,60],[10,1.15,55],[15,1.3,50],[20,1.5,45],[30,1.75,40],[50,2,35],[1e9,2.5,30]];
+const BW=1.2,BH=0.8,BD=0.9,WCOLS=9,WROWS=9,TRACK_LEN=250;
+
+// ---- EMOJI WALL TEMPLATES ----
+// Each emoji: { name, grid (9x9, color indices 0-5 or -1=empty), mouthR, mouthC (gap anchor row,col) }
+// Color map: 0=red,1=blue,2=yellow/gold,3=green,4=purple,5=orange, 6=white, 7=black, 8=pink
+const EMOJI_COLORS=[
+  new BABYLON.Color3(0.8,0.15,0.13),  // 0 red
+  new BABYLON.Color3(0.13,0.33,0.67), // 1 blue
+  new BABYLON.Color3(0.95,0.75,0.1),  // 2 yellow
+  new BABYLON.Color3(0.2,0.67,0.33),  // 3 green
+  new BABYLON.Color3(0.6,0.25,0.73),  // 4 purple
+  new BABYLON.Color3(0.87,0.4,0.2),   // 5 orange
+  new BABYLON.Color3(0.95,0.95,0.95), // 6 white
+  new BABYLON.Color3(0.1,0.1,0.1),    // 7 black
+  new BABYLON.Color3(0.95,0.55,0.6),  // 8 pink
+];
+
+const EMOJIS=[
+  { name:'SMILEY', grid:[
+    [-1, 2, 2, 2, 2, 2, 2, 2,-1],
+    [ 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    [ 2, 2, 7, 7, 2, 7, 7, 2, 2],
+    [ 2, 2, 7, 7, 2, 7, 7, 2, 2],
+    [ 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    [ 2, 8, 2, 2, 2, 2, 2, 8, 2],
+    [ 2, 2, 8, 8, 8, 8, 8, 2, 2],
+    [ 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    [-1, 2, 2, 2, 2, 2, 2, 2,-1],
+  ], mouthR:6, mouthC:4 },
+
+  { name:'CAT', grid:[
+    [ 5,-1,-1,-1,-1,-1,-1,-1, 5],
+    [ 5, 5,-1,-1,-1,-1,-1, 5, 5],
+    [ 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [ 5, 5, 3, 3, 5, 3, 3, 5, 5],
+    [ 5, 5, 7, 3, 5, 7, 3, 5, 5],
+    [ 5, 5, 5, 5, 8, 5, 5, 5, 5],
+    [ 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [ 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [-1, 5, 5, 5, 5, 5, 5, 5,-1],
+  ], mouthR:6, mouthC:4 },
+
+  { name:'ROBOT', grid:[
+    [-1,-1,-1, 1, 1, 1,-1,-1,-1],
+    [ 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [ 1, 7, 7, 1, 1, 1, 7, 7, 1],
+    [ 1, 6, 6, 1, 1, 1, 6, 6, 1],
+    [ 1, 1, 1, 1, 0, 1, 1, 1, 1],
+    [ 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [ 1, 1, 7, 7, 7, 7, 7, 1, 1],
+    [ 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [ 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  ], mouthR:6, mouthC:4 },
+
+  { name:'ALIEN', grid:[
+    [-1, 3, 3, 3, 3, 3, 3, 3,-1],
+    [ 3, 3, 3, 3, 3, 3, 3, 3, 3],
+    [ 3, 7, 7, 7, 3, 7, 7, 7, 3],
+    [ 3, 7, 3, 7, 3, 7, 3, 7, 3],
+    [ 3, 3, 3, 3, 3, 3, 3, 3, 3],
+    [ 3, 3, 3, 3, 3, 3, 3, 3, 3],
+    [ 3, 3, 3, 3, 3, 3, 3, 3, 3],
+    [ 3, 3, 3, 3, 3, 3, 3, 3, 3],
+    [-1,-1, 3, 3, 3, 3, 3,-1,-1],
+  ], mouthR:6, mouthC:4 },
+
+  { name:'SKULL', grid:[
+    [-1, 6, 6, 6, 6, 6, 6, 6,-1],
+    [ 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    [ 6, 6, 7, 7, 6, 7, 7, 6, 6],
+    [ 6, 6, 7, 7, 6, 7, 7, 6, 6],
+    [ 6, 6, 6, 6, 7, 6, 6, 6, 6],
+    [ 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    [ 6, 6, 7, 6, 7, 6, 7, 6, 6],
+    [ 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    [-1,-1, 6, 6, 6, 6, 6,-1,-1],
+  ], mouthR:6, mouthC:4 },
+
+  { name:'HEART', grid:[
+    [-1, 0, 0,-1,-1,-1, 0, 0,-1],
+    [ 0, 0, 0, 0,-1, 0, 0, 0, 0],
+    [ 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [ 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [-1, 0, 0, 0, 0, 0, 0, 0,-1],
+    [-1,-1, 0, 0, 0, 0, 0,-1,-1],
+    [-1,-1,-1, 0, 0, 0,-1,-1,-1],
+    [-1,-1,-1,-1, 0,-1,-1,-1,-1],
+    [-1,-1,-1,-1,-1,-1,-1,-1,-1],
+  ], mouthR:4, mouthC:4 },  // gap at center of heart body (row 4) where bricks exist
+
+  { name:'BEAR', grid:[
+    [ 5, 5,-1,-1,-1,-1,-1, 5, 5],
+    [ 5, 5, 5,-1,-1,-1, 5, 5, 5],
+    [-1, 5, 5, 5, 5, 5, 5, 5,-1],
+    [-1, 5, 7, 7, 5, 7, 7, 5,-1],
+    [-1, 5, 5, 5, 7, 5, 5, 5,-1],
+    [-1, 5, 5, 5, 5, 5, 5, 5,-1],
+    [-1, 5, 5, 5, 5, 5, 5, 5,-1],
+    [-1, 5, 5, 5, 5, 5, 5, 5,-1],
+    [-1,-1, 5, 5, 5, 5, 5,-1,-1],
+  ], mouthR:6, mouthC:4 },
+];
+
+// ---- Babylon Setup ----
+const canvas=document.getElementById('renderCanvas');
+const engine=new BABYLON.Engine(canvas,true,{stencil:true},true);
+engine.setHardwareScalingLevel(1/Math.min(window.devicePixelRatio,2));
+const scene=new BABYLON.Scene(engine);
+scene.clearColor=new BABYLON.Color4(0.25,0.55,0.82,1);
+scene.ambientColor=new BABYLON.Color3(0.3,0.3,0.35);
+scene.fogMode=BABYLON.Scene.FOGMODE_EXP2;
+scene.fogDensity=0.008;
+scene.fogColor=new BABYLON.Color3(0.55,0.75,0.88);
+
+// Camera
+const camera=new BABYLON.FreeCamera('cam',new BABYLON.Vector3(0,9,-8),scene);
+camera.setTarget(new BABYLON.Vector3(0,1.5,20));
+camera.minZ=0.1;camera.maxZ=300;
+
+// Lights — warm sunlight
+const hemiLight=new BABYLON.HemisphericLight('hemi',new BABYLON.Vector3(0,1,0),scene);
+hemiLight.intensity=0.6;hemiLight.diffuse=new BABYLON.Color3(1,0.97,0.9);
+hemiLight.groundColor=new BABYLON.Color3(0.3,0.4,0.25);
+
+const dirLight=new BABYLON.DirectionalLight('dir',new BABYLON.Vector3(-0.5,-1,0.8),scene);
+dirLight.intensity=0.9;dirLight.diffuse=new BABYLON.Color3(1,0.93,0.8);
+dirLight.position=new BABYLON.Vector3(10,25,0);
+
+// Shadows
+const shadowGen=new BABYLON.ShadowGenerator(1024,dirLight);
+shadowGen.usePercentageCloserFiltering=true;
+shadowGen.filteringQuality=BABYLON.ShadowGenerator.QUALITY_MEDIUM;
+shadowGen.bias=0.001;shadowGen.normalBias=0.02;
+
+// Post-processing — bloom + FXAA + vignette
+const pipeline=new BABYLON.DefaultRenderingPipeline('default',true,scene,[camera]);
+pipeline.bloomEnabled=true;pipeline.bloomThreshold=0.7;pipeline.bloomWeight=0.3;pipeline.bloomKernel=32;
+pipeline.fxaaEnabled=true;
+pipeline.vignetteEnabled=true;pipeline.vignetteWeight=1.5;pipeline.vignetteStretch=0.5;
+pipeline.imageProcessingEnabled=true;
+pipeline.imageProcessing.contrast=1.15;
+pipeline.imageProcessing.exposure=1.1;
+pipeline.imageProcessing.toneMappingEnabled=true;
+pipeline.imageProcessing.toneMappingType=BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
+
+// Glow layer for wall gap
+const glowLayer=new BABYLON.GlowLayer('glow',scene);
+glowLayer.intensity=0.6;
+
+// ---- Material helpers ----
+function makeMat(name,color,rough){
+  const m=new BABYLON.PBRMaterial(name,scene);
+  m.albedoColor=color instanceof BABYLON.Color3?color:new BABYLON.Color3(...color);
+  m.roughness=rough||0.5;m.metallic=0.02;
+  return m;
+}
+function makeSimpleMat(name,r,g,b){
+  const m=new BABYLON.StandardMaterial(name,scene);
+  m.diffuseColor=new BABYLON.Color3(r,g,b);return m;
+}
+
+// ---- SKY ----
+const skybox=BABYLON.MeshBuilder.CreateBox('sky',{size:250},scene);
+const skyMat=new BABYLON.StandardMaterial('skyMat',scene);
+skyMat.backFaceCulling=false;skyMat.disableLighting=true;
+skyMat.diffuseColor=new BABYLON.Color3(0,0,0);
+skyMat.specularColor=new BABYLON.Color3(0,0,0);
+skyMat.emissiveColor=new BABYLON.Color3(0.4,0.65,0.85);
+skybox.material=skyMat;skybox.infiniteDistance=true;
+
+// ---- ROAD ----
+const road=BABYLON.MeshBuilder.CreateGround('road',{width:8,height:TRACK_LEN,subdivisions:1},scene);
+const roadMat=new BABYLON.PBRMaterial('roadMat',scene);
+roadMat.albedoColor=new BABYLON.Color3(0.25,0.25,0.28);roadMat.roughness=0.85;roadMat.metallic=0;
+road.material=roadMat;road.receiveShadows=true;road.position.z=TRACK_LEN/2-10;
+
+// Lane markings (white dashed lines)
+const laneGroup=[];
+const laneMat=new BABYLON.StandardMaterial('laneMat',scene);laneMat.diffuseColor=new BABYLON.Color3(0.9,0.9,0.85);laneMat.emissiveColor=new BABYLON.Color3(0.15,0.15,0.12);
+for(let i=0;i<60;i++){
+  const dash=BABYLON.MeshBuilder.CreateBox('dash'+i,{width:0.12,height:0.02,depth:1.5},scene);
+  dash.position=new BABYLON.Vector3(0,0.01,i*4);
+  dash.material=laneMat;laneGroup.push(dash);
+}
+
+// Sidewalk/curb edges (warm orange)
+const curbMat=makeMat('curb',new BABYLON.Color3(0.93,0.65,0.15),0.5);
+const curbL=BABYLON.MeshBuilder.CreateBox('curbL',{width:0.6,height:0.4,depth:TRACK_LEN},scene);
+curbL.position=new BABYLON.Vector3(-4.3,0.2,TRACK_LEN/2-10);curbL.material=curbMat;
+curbL.receiveShadows=true;shadowGen.addShadowCaster(curbL);
+const curbR=curbL.clone('curbR');curbR.position.x=4.3;
+
+// Grass
+const grassMat=makeMat('grass',new BABYLON.Color3(0.12,0.48,0.18),0.9);
+const grassL=BABYLON.MeshBuilder.CreateGround('grassL',{width:50,height:TRACK_LEN},scene);
+grassL.position=new BABYLON.Vector3(-29,-.05,TRACK_LEN/2-10);grassL.material=grassMat;grassL.receiveShadows=true;
+const grassR=BABYLON.MeshBuilder.CreateGround('grassR',{width:50,height:TRACK_LEN},scene);
+grassR.position=new BABYLON.Vector3(29,-.05,TRACK_LEN/2-10);grassR.material=grassMat;grassR.receiveShadows=true;
+
+// ---- BUILDINGS ----
+const buildings=[];
+for(let i=0;i<40;i++){
+  const side=i<20?-1:1;
+  const bh=5+Math.random()*12,bw=2.5+Math.random()*4,bd=2.5+Math.random()*4;
+  const col=BCOLS[Math.floor(Math.random()*BCOLS.length)];
+  const bld=BABYLON.MeshBuilder.CreateBox('bld'+i,{width:bw,height:bh,depth:bd},scene);
+  bld.position=new BABYLON.Vector3(side*(6+Math.random()*8),bh/2,Math.random()*TRACK_LEN);
+  const bm=makeMat('bm'+i,col,0.55);bld.material=bm;
+  bld.receiveShadows=true;shadowGen.addShadowCaster(bld);
+  // Windows
+  for(let r=0;r<Math.floor(bh/2.5);r++)for(let c=0;c<Math.floor(bw/1.5);c++){
+    const win=BABYLON.MeshBuilder.CreateBox('w'+i+'_'+r+'_'+c,{width:0.5,height:0.7,depth:0.05},scene);
+    const wm=makeSimpleMat('wm',0.7,0.88,1);wm.emissiveColor=new BABYLON.Color3(0.15,0.2,0.25);
+    win.material=wm;win.parent=bld;
+    win.position=new BABYLON.Vector3((c-Math.floor(bw/1.5)/2+0.5)*1.2,(-bh/2)+1.5+r*2.3,side>0?-bd/2-0.02:bd/2+0.02);
+  }
+  // Roof studs
+  for(let sx=0;sx<Math.floor(bw/1.2);sx++){
+    const s=BABYLON.MeshBuilder.CreateCylinder('s',{height:0.15,diameter:0.4,tessellation:8},scene);
+    s.material=bm;s.parent=bld;s.position=new BABYLON.Vector3((sx-Math.floor(bw/1.2)/2+0.5)*1.1,bh/2+0.075,0);
+  }
+  buildings.push(bld);
+}
+
+// ---- TRAIN CARS ----
+const trainColors=[new BABYLON.Color3(0.15,0.28,0.65),new BABYLON.Color3(0.82,0.2,0.15),new BABYLON.Color3(0.9,0.65,0.12),new BABYLON.Color3(0.15,0.55,0.3)];
+const trains=[];
+for(let i=0;i<14;i++){
+  const side=i<7?-1:1;
+  const tg=new BABYLON.TransformNode('train'+i,scene);
+  const tc=trainColors[i%trainColors.length];
+  const carM=makeMat('tc'+i,tc,0.4);carM.metallic=0.08;
+  const car=BABYLON.MeshBuilder.CreateBox('car'+i,{width:2.4,height:3,depth:7},scene);
+  car.material=carM;car.position.y=2.3;car.parent=tg;shadowGen.addShadowCaster(car);car.receiveShadows=true;
+  // Roof
+  const roofM=makeMat('rf'+i,new BABYLON.Color3(0.35,0.35,0.38),0.5);
+  const roof=BABYLON.MeshBuilder.CreateBox('roof'+i,{width:2.5,height:0.25,depth:7.2},scene);
+  roof.material=roofM;roof.position.y=3.9;roof.parent=tg;
+  // Yellow stripe
+  const stripeM=makeSimpleMat('st'+i,0.95,0.78,0.1);stripeM.emissiveColor=new BABYLON.Color3(0.2,0.15,0);
+  const stripe=BABYLON.MeshBuilder.CreateBox('stripe'+i,{width:2.42,height:0.25,depth:7.02},scene);
+  stripe.material=stripeM;stripe.position.y=2.8;stripe.parent=tg;
+  // Windows
+  const winM=makeSimpleMat('tw',0.65,0.85,0.95);winM.emissiveColor=new BABYLON.Color3(0.1,0.15,0.2);
+  for(let w=0;w<3;w++){
+    const win=BABYLON.MeshBuilder.CreateBox('tw'+i+'_'+w,{width:0.05,height:0.8,depth:1.4},scene);
+    win.material=winM;win.parent=tg;
+    win.position=new BABYLON.Vector3(side>0?-1.22:1.22,2.8,(w-1)*2.3);
+  }
+  tg.position=new BABYLON.Vector3(side*5.5,0,(i%7)*35+Math.random()*8);
+  trains.push(tg);
+}
+
+// ---- TREES ----
+const trees=[];
+const trunkMat=makeMat('trunk',new BABYLON.Color3(0.4,0.28,0.15),0.8);
+const leafMats=[makeMat('l1',new BABYLON.Color3(0.15,0.42,0.15),0.75),makeMat('l2',new BABYLON.Color3(0.18,0.52,0.2),0.75),makeMat('l3',new BABYLON.Color3(0.22,0.48,0.18),0.75)];
+for(let i=0;i<20;i++){
+  const side=i<10?-1:1;
+  const tg=new BABYLON.TransformNode('tree'+i,scene);
+  const th=1.5+Math.random()*2;
+  const trunk=BABYLON.MeshBuilder.CreateCylinder('trk'+i,{height:th,diameterTop:0.25,diameterBottom:0.4,tessellation:6},scene);
+  trunk.material=trunkMat;trunk.position.y=th/2;trunk.parent=tg;shadowGen.addShadowCaster(trunk);
+  const cr=1.5+Math.random()*1.5;
+  const crown=BABYLON.MeshBuilder.CreateSphere('crn'+i,{diameter:cr*2,segments:8},scene);
+  crown.material=leafMats[Math.floor(Math.random()*3)];crown.position.y=th+cr*0.5;crown.parent=tg;
+  crown.scaling=new BABYLON.Vector3(1,0.8,1);shadowGen.addShadowCaster(crown);
+  tg.position=new BABYLON.Vector3(side*(8+Math.random()*10),0,Math.random()*TRACK_LEN);
+  trees.push(tg);
+}
+
+// ---- CLOUDS ----
+const cloudMat=makeSimpleMat('cld',1,1,1);cloudMat.emissiveColor=new BABYLON.Color3(0.85,0.9,0.95);
+const clouds=[];
+for(let i=0;i<10;i++){
+  const cg=new BABYLON.TransformNode('cloud'+i,scene);
+  const n=3+Math.floor(Math.random()*4);
+  for(let j=0;j<n;j++){
+    const r=2+Math.random()*3;
+    const p=BABYLON.MeshBuilder.CreateSphere('cp'+i+'_'+j,{diameter:r*2,segments:8},scene);
+    p.material=cloudMat;p.position=new BABYLON.Vector3(j*2-n,Math.random()*1.2,Math.random()*1.5);
+    p.scaling.y=0.5;p.parent=cg;
+  }
+  cg.position=new BABYLON.Vector3(-40+Math.random()*80,25+Math.random()*15,Math.random()*200);
+  cg._speed=0.3+Math.random()*0.6;clouds.push(cg);
+}
+
+// ============ GAME STATE ============
+let state='start',score=0,wallsCleared=0,coins=0,combo=1;
+let totalCoins=+localStorage.getItem('brickrun_coins')||0;
+let highScore=+localStorage.getItem('brickrun_high')||0;
+let gameTime=0,currentShapeIdx=0,wallGapShapeIdx=0,wallColorIdx=0;
+let currentColorIdx=0,wallGapColorIdx=0; // player's color vs gap's required color
+let wallZ=0,runnerZ=0,tapAnim=0,freezeTimer=0,shakeMag=0;
+let matchAnim={active:false,t:0,exploded:false};
+let crashAnim={active:false,t:0};
+let comboTimer=0,scorePopupTimer=0;
+let wallMeshes=[],gapGlowMeshes=[],floatBricks=[],coinMeshes=[],particleMeshes=[];
+
+// ---- MASCOT (blue runner) ----
+const mascotRoot=new BABYLON.TransformNode('mascot',scene);
+const mascotMat=makeMat('mascot',new BABYLON.Color3(0.2,0.47,0.8),0.45);
+const mBody=BABYLON.MeshBuilder.CreateSphere('mbody',{diameter:1.8,segments:12},scene);
+mBody.material=mascotMat;mBody.scaling=new BABYLON.Vector3(1,1.2,0.9);mBody.position.y=1.8;mBody.parent=mascotRoot;
+shadowGen.addShadowCaster(mBody);mBody.receiveShadows=true;
+// Belly
+const bellyMat=makeMat('belly',new BABYLON.Color3(0.45,0.65,0.9),0.5);
+const belly=BABYLON.MeshBuilder.CreateSphere('belly',{diameter:1.1,segments:8},scene);
+belly.material=bellyMat;belly.scaling=new BABYLON.Vector3(0.8,0.85,0.5);belly.position=new BABYLON.Vector3(0,1.5,0.5);belly.parent=mascotRoot;
+// Eyes (on front +z)
+const eyeWM=makeSimpleMat('ew',1,1,1);eyeWM.emissiveColor=new BABYLON.Color3(0.9,0.9,0.9);
+const eyeBM=makeSimpleMat('eb',0.05,0.05,0.05);eyeBM.emissiveColor=new BABYLON.Color3(0,0,0);
+for(const sx of[-0.28,0.28]){
+  const ew=BABYLON.MeshBuilder.CreateSphere('ew',{diameter:0.38,segments:8},scene);ew.material=eyeWM;ew.position=new BABYLON.Vector3(sx,2.15,0.65);ew.parent=mascotRoot;
+  const ep=BABYLON.MeshBuilder.CreateSphere('ep',{diameter:0.22,segments:8},scene);ep.material=eyeBM;ep.position=new BABYLON.Vector3(sx,2.15,0.8);ep.parent=mascotRoot;
+  const eg=BABYLON.MeshBuilder.CreateSphere('eg',{diameter:0.08,segments:6},scene);eg.material=eyeWM;eg.position=new BABYLON.Vector3(sx+0.06,2.22,0.88);eg.parent=mascotRoot;
+}
+// Crown
+const crownMat=makeMat('crown',new BABYLON.Color3(0.95,0.78,0.1),0.3);crownMat.metallic=0.3;
+const crBase=BABYLON.MeshBuilder.CreateCylinder('crbase',{height:0.2,diameterTop:0.8,diameterBottom:1,tessellation:8},scene);
+crBase.material=crownMat;crBase.position.y=2.95;crBase.parent=mascotRoot;
+for(let i=0;i<5;i++){const a=i/5*Math.PI*2;const cp=BABYLON.MeshBuilder.CreateBox('cp'+i,{width:0.15,height:0.25,depth:0.15},scene);cp.material=crownMat;cp.position=new BABYLON.Vector3(Math.sin(a)*0.35,3.15,Math.cos(a)*0.35);cp.parent=mascotRoot;}
+// Legs
+const legMat=mascotMat;
+const legL=BABYLON.MeshBuilder.CreateCylinder('legL',{height:0.6,diameterTop:0.4,diameterBottom:0.5,tessellation:8},scene);legL.material=legMat;legL.position=new BABYLON.Vector3(-0.35,0.3,0);legL.parent=mascotRoot;shadowGen.addShadowCaster(legL);
+const legR=legL.clone('legR');legR.position.x=0.35;legR.parent=mascotRoot;
+// Shoes
+const shoeMat=makeMat('shoe',new BABYLON.Color3(0.95,0.95,0.95),0.3);
+const shoeL=BABYLON.MeshBuilder.CreateBox('shoeL',{width:0.38,height:0.18,depth:0.45},scene);shoeL.material=shoeMat;shoeL.position=new BABYLON.Vector3(-0.35,0.05,0.08);shoeL.parent=mascotRoot;
+const shoeR=shoeL.clone('shoeR');shoeR.position.x=0.35;shoeR.parent=mascotRoot;
+mascotRoot.scaling=new BABYLON.Vector3(1.3,1.3,1.3);
+
+// DOM refs
+const $wall=document.getElementById('wall-counter'),$coin=document.getElementById('coin-counter'),$score=document.getElementById('score-display');
+const $tapHint=document.getElementById('tap-hint'),$combo=document.getElementById('combo-text'),$scorePop=document.getElementById('score-popup');
+const $flash=document.getElementById('flash-overlay'),$startScr=document.getElementById('start-screen'),$goScr=document.getElementById('gameover-screen');
+const $shapeBar=document.getElementById('shape-bar');
+document.getElementById('start-best').textContent='BEST: '+highScore;
+document.getElementById('start-coins').textContent='TOTAL COINS: '+totalCoins;
+
+// Shape bar
+function buildShapeBar(){$shapeBar.innerHTML='';SHAPES.forEach((sh,i)=>{
+  const d=document.createElement('div');d.className='si'+(i===currentShapeIdx?' active':'');d.id='sh-'+i;
+  const c=document.createElement('canvas');c.width=56;c.height=56;const cx=c.getContext('2d');
+  const cs=Math.min(48/sh.w,48/sh.h),ox=(56-sh.w*cs)/2,oy=(56-sh.h*cs)/2;
+  sh.cells.forEach(([col,row])=>{cx.fillStyle='#fff';cx.fillRect(ox+col*cs+1,oy+row*cs+1,cs-2,cs-2)});
+  d.appendChild(c);$shapeBar.appendChild(d);
+})}
+buildShapeBar();
+function updateShapeBar(){SHAPES.forEach((_,i)=>{const e=document.getElementById('sh-'+i);if(e)e.className='si'+(i===currentShapeIdx?' active':'')})}
+
+// Color bar — shows all available colors with current one highlighted
+function buildColorBar(){
+  const bar=document.getElementById('color-bar');bar.innerHTML='';
+  BCOLS_HEX.forEach((hex,i)=>{
+    const d=document.createElement('div');d.className='color-dot'+(i===currentColorIdx?' active':'');d.id='cd-'+i;
+    d.style.background=hex;bar.appendChild(d);
+  });
+}
+buildColorBar();
+function updateColorBar(){
+  BCOLS_HEX.forEach((_,i)=>{const e=document.getElementById('cd-'+i);if(e)e.className='color-dot'+(i===currentColorIdx?' active':'')});
+}
+
+// Utils
+function rand(a,b){return a+Math.random()*(b-a)}
+function randInt(a,b){return Math.floor(rand(a,b+1))}
+function lerp(a,b,t){return a+(b-a)*t}
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v))}
+function getTier(){for(const t of TIERS)if(wallsCleared<t[0])return t;return TIERS[6]}
+function playSound(n){}
+function vibrate(ms){if(navigator.vibrate)navigator.vibrate(ms)}
+
+// ============ BRICK BUILDER ============
+// Pre-create materials for the 6 brick colors (reusable)
+const brickMatPool={};
+function getBrickPoolMat(ci){
+  if(!brickMatPool[ci]) brickMatPool[ci]=makeMat('bpool'+ci,BCOLS[ci],0.5);
+  return brickMatPool[ci];
+}
+function createBrick(w,h,d,colorIdx,parent){
+  const b=BABYLON.MeshBuilder.CreateBox('b',{width:w,height:h,depth:d},scene);
+  b.material=getBrickPoolMat(colorIdx);
+  if(parent)b.parent=parent;
+  b.receiveShadows=true;shadowGen.addShadowCaster(b);
+  // Stud
+  const s=BABYLON.MeshBuilder.CreateCylinder('s',{height:h*0.15,diameter:Math.min(w,d)*0.35,tessellation:8},scene);
+  s.material=b.material;s.position.y=h/2+h*0.075;s.parent=b;
+  return b;
+}
+
+// ============ WALL & FLOATING BRICK ============
+const wallRoot=new BABYLON.TransformNode('wallRoot',scene);
+const floatRoot=new BABYLON.TransformNode('floatRoot',scene);
+
+let currentEmoji=null;
+const wallMatCache={};
+function buildWall(){
+  wallMeshes.forEach(m=>{shadowGen.removeShadowCaster(m);m.getChildMeshes().forEach(c=>c.dispose());m.dispose()});wallMeshes=[];
+  gapGlowMeshes.forEach(m=>m.dispose());gapGlowMeshes=[];
+
+  // Pick a random emoji
+  currentEmoji=EMOJIS[randInt(0,EMOJIS.length-1)];
+  const grid=currentEmoji.grid;
+  const sh=SHAPES[wallGapShapeIdx];
+
+  // Center the gap shape in the emoji's mouth area
+  // mouthR/mouthC is the CENTER of the mouth zone — adjust for shape size
+  const gC=Math.round(currentEmoji.mouthC+(1-sh.w)/2); // center horizontally
+  const gR=Math.round(currentEmoji.mouthR+(1-sh.h)/2); // center vertically
+
+  // Clamp to grid bounds
+  const gCc=clamp(gC,0,WCOLS-sh.w);
+  const gRc=clamp(gR,0,WROWS-sh.h);
+
+  // Build gap set
+  const gaps=new Set();
+  sh.cells.forEach(([c,r])=>gaps.add((gCc+c)+','+(gRc+r)));
+
+  // Build emoji wall from the grid
+  for(let r=0;r<WROWS;r++)for(let c=0;c<WCOLS;c++){
+    const colorIdx=grid[r]?grid[r][c]:-1;
+    if(colorIdx<0)continue; // empty cell (shape outline)
+    if(gaps.has(c+','+r))continue; // gap cell
+
+    // Use the emoji grid color so faces (eyes, mouth, features) are visible
+    const eColor=EMOJI_COLORS[colorIdx]||EMOJI_COLORS[2];
+    const b=BABYLON.MeshBuilder.CreateBox('wb',{width:BW-0.05,height:BH-0.05,depth:BD},scene);
+    // Reuse cached material per color index instead of creating new ones
+    if(!wallMatCache[colorIdx]) wallMatCache[colorIdx]=makeMat('wm'+colorIdx,eColor,0.5);
+    b.material=wallMatCache[colorIdx];
+    b.position=new BABYLON.Vector3((c-WCOLS/2+0.5)*BW,(WROWS-r-0.5)*BH,0);
+    b.parent=wallRoot;b.receiveShadows=true;shadowGen.addShadowCaster(b);
+    // Stud on top (reuses same cached material)
+    const s=BABYLON.MeshBuilder.CreateCylinder('ws',{height:BH*0.15,diameter:Math.min(BW,BD)*0.35,tessellation:8},scene);
+    s.material=wallMatCache[colorIdx];s.position.y=BH/2+BH*0.075;s.parent=b;
+    b._colorIdx=colorIdx;wallMeshes.push(b);
+  }
+
+  // Gap glow — use the TARGET color the player must match
+  const gc=BCOLS[wallGapColorIdx];
+  sh.cells.forEach(([c,r])=>{
+    const gx=(gCc+c-WCOLS/2+0.5)*BW,gy=(WROWS-(gRc+r)-0.5)*BH;
+    // Dark hole
+    const hole=BABYLON.MeshBuilder.CreateBox('hole',{width:BW+0.04,height:BH+0.04,depth:BD+0.3},scene);
+    hole.position=new BABYLON.Vector3(gx,gy,0);hole.parent=wallRoot;
+    const hm=makeSimpleMat('hm',0.03,0.03,0.03);hole.material=hm;gapGlowMeshes.push(hole);
+    // Glowing border
+    const gm=makeSimpleMat('gm',gc.r,gc.g,gc.b);
+    gm.emissiveColor=new BABYLON.Color3(gc.r*0.9,gc.g*0.9,gc.b*0.9);
+    const border=BABYLON.MeshBuilder.CreateBox('gb',{width:BW+0.2,height:BH+0.2,depth:BD+0.1},scene);
+    border.position=new BABYLON.Vector3(gx,gy,-0.15);border.parent=wallRoot;border.material=gm;
+    glowLayer.addIncludedOnlyMesh(border);gapGlowMeshes.push(border);
+  });
+
+  // Store gap center position for the fit animation
+  const sh2=SHAPES[wallGapShapeIdx];
+  wallRoot._gapCenterX=(gCc+sh2.w/2-WCOLS/2+0.5)*BW - BW/2;
+  wallRoot._gapCenterY=(WROWS-(gRc+sh2.h/2)-0.5)*BH;
+  wallRoot.position.z=wallZ;wallRoot.setEnabled(true);
+}
+
+function buildFloatingBrick(){
+  floatBricks.forEach(m=>{m.getChildMeshes().forEach(c=>c.dispose());m.dispose()});floatBricks=[];
+  const sh=SHAPES[currentShapeIdx];
+  // In Level 1, brick color always matches gap color. In Level 2, uses player's chosen color.
+  const brickColorIdx=(wallsCleared>=10)?currentColorIdx:wallGapColorIdx;
+  sh.cells.forEach(([c,r])=>{
+    const b=createBrick(BW-0.05,BH-0.05,BD,brickColorIdx,floatRoot);
+    b.position=new BABYLON.Vector3((c-sh.w/2+0.5)*BW,(sh.h-r-0.5)*BH,0);
+    floatBricks.push(b);
+  });
+}
+
+// Coins
+function spawnCoins(){
+  coinMeshes.forEach(m=>m.dispose());coinMeshes=[];
+  const n=randInt(3,5);
+  const cm=makeMat('coin',new BABYLON.Color3(0.95,0.82,0.1),0.3);cm.metallic=0.5;
+  for(let i=0;i<n;i++){
+    const c=BABYLON.MeshBuilder.CreateCylinder('coin'+i,{height:0.12,diameter:0.7,tessellation:12},scene);
+    c.material=cm;c.rotation.x=Math.PI/2;
+    c.position=new BABYLON.Vector3(rand(-2,2),1.5,runnerZ+rand(8,wallZ-8));
+    c._collected=false;coinMeshes.push(c);
+  }
+}
+
+function generateWall(){
+  const tier=getTier();wallGapShapeIdx=randInt(0,SHAPES.length-1);wallColorIdx=randInt(0,BCOLS.length-1);
+  wallGapColorIdx=randInt(0,BCOLS.length-1); // the color the gap requires
+  wallZ=runnerZ+tier[2];
+  currentShapeIdx=(wallGapShapeIdx+randInt(1,SHAPES.length-1))%SHAPES.length;
+  // Level 1: auto-match color. Level 2: start on wrong color
+  if(wallsCleared>=10) currentColorIdx=(wallGapColorIdx+randInt(1,BCOLS.length-1))%BCOLS.length;
+  else currentColorIdx=wallGapColorIdx;
+  buildWall();buildFloatingBrick();updateShapeBar();updateColorBar();spawnCoins();
+}
+
+function initGame(){
+  score=0;wallsCleared=0;coins=0;combo=1;runnerZ=0;gameTime=0;tapAnim=0;freezeTimer=0;shakeMag=0;
+  matchAnim={active:false,t:0,exploded:false};crashAnim={active:false,t:0};comboTimer=0;scorePopupTimer=0;
+  particleMeshes.forEach(p=>p.dispose());particleMeshes=[];
+  mascotRoot.position=BABYLON.Vector3.Zero();mascotRoot.scaling=new BABYLON.Vector3(1.3,1.3,1.3);
+  mascotRoot.rotation=BABYLON.Vector3.Zero();
+  camera.position=new BABYLON.Vector3(0,9,-8);
+  generateWall();updateHUD();
+}
+function updateHUD(){$wall.textContent='WALL '+(wallsCleared+1);$coin.textContent='💰 '+coins;$score.textContent=score}
+function showScorePopup(t,c){$scorePop.textContent=t;$scorePop.style.color=c||'#fff';$scorePop.style.opacity='1';scorePopupTimer=1.2}
+function showCombo(t){$combo.textContent=t;$combo.style.opacity='1';comboTimer=1.5}
+
+// ============ INPUT (left = color, right = shape) ============
+function handleTap(side){
+  // side: 'left' or 'right' (or 'any' for menu screens)
+  if(state==='start'){state='playing';$startScr.classList.add('hidden');initGame();return}
+  if(state==='gameover'){if(crashAnim.t>1.2){state='start';$goScr.classList.add('hidden');$startScr.classList.remove('hidden');
+    document.getElementById('start-best').textContent='BEST: '+highScore;document.getElementById('start-coins').textContent='TOTAL COINS: '+totalCoins}return}
+  if(state==='playing'&&!matchAnim.active&&!crashAnim.active){
+    const isLevel2=wallsCleared>=10;
+    if(!isLevel2||side==='right'){
+      // Cycle shape (always works on any tap in Level 1, right tap in Level 2)
+      currentShapeIdx=(currentShapeIdx+1)%SHAPES.length;
+      tapAnim=1;buildFloatingBrick();updateShapeBar();
+    } else {
+      // Cycle color (left tap, Level 2 only)
+      currentColorIdx=(currentColorIdx+1)%BCOLS.length;
+      tapAnim=1;buildFloatingBrick();updateColorBar();
+    }
+    playSound('tap');vibrate(30);
+  }
+}
+function getTapSide(x){return x>window.innerWidth/2?'right':'left'}
+document.addEventListener('touchstart',e=>{e.preventDefault();handleTap(getTapSide(e.touches[0].clientX))},{passive:false});
+document.addEventListener('mousedown',e=>handleTap(getTapSide(e.clientX)));
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'||e.code==='ArrowRight'){e.preventDefault();handleTap('right')}
+  if(e.code==='Enter'||e.code==='ArrowLeft'){e.preventDefault();handleTap('left')}
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)lastT=0});
+
+function triggerCollapse(dist){
+  matchAnim={active:true,t:0,exploded:false,docked:false,triggerDist:dist||0};
+  playSound('collapse');
+}
+// 4 dramatic crash types for TikTok-worthy fails
+const CRASH_TYPES=['pancake','bounce','spin','launch'];
+function triggerCrash(){
+  const type=CRASH_TYPES[randInt(0,CRASH_TYPES.length-1)];
+  crashAnim={active:true,t:0,type:type,startZ:runnerZ};
+  shakeMag=1.5;
+  $flash.style.background='#FF0000';$flash.style.opacity='0.4';
+  setTimeout(()=>$flash.style.opacity='0',350);
+  vibrate([80,30,120,30,80]);playSound('crash');
+}
+
+// ============ EPIC PARTICLE EXPLOSION ============
+function spawnExplosion(){
+  const wallPos=wallRoot.position.clone();
+
+  // 1) BRICK CHUNKS — every wall brick becomes a flying particle
+  wallMeshes.forEach(b=>{
+    const wp=b.getAbsolutePosition();const ci=b._colorIdx||0;
+    const ec=EMOJI_COLORS[ci]||EMOJI_COLORS[2];
+    // Main brick chunk
+    const p=BABYLON.MeshBuilder.CreateBox('p',{width:BW*0.7,height:BH*0.7,depth:BD*0.5},scene);
+    p.position=wp.clone();
+    const pm=makeSimpleMat('pm',ec.r,ec.g,ec.b);pm.emissiveColor=new BABYLON.Color3(ec.r*0.15,ec.g*0.15,ec.b*0.15);
+    p.material=pm;
+    // Explosion direction: outward from center + upward + backward
+    const dirX=(wp.x-wallPos.x)*2;
+    const dirY=Math.abs(wp.y-3)*1.5+rand(2,8);
+    p._vel=new BABYLON.Vector3(dirX+rand(-3,3),dirY,rand(-12,-2));
+    p._rotVel=new BABYLON.Vector3(rand(-10,10),rand(-10,10),rand(-10,10));
+    p._life=rand(1.2,2.5);p._startLife=p._life;
+    particleMeshes.push(p);
+  });
+
+  // 2) SPARKLE BURST — white/yellow sparkles radiating outward
+  for(let i=0;i<25;i++){
+    const sp=BABYLON.MeshBuilder.CreateBox('sp',{size:0.15},scene);
+    const bright=Math.random()>0.5;
+    const sm=makeSimpleMat('sm',bright?1:0.95,bright?0.95:0.8,bright?0.5:0.2);
+    sm.emissiveColor=new BABYLON.Color3(1,0.9,0.4);
+    sp.material=sm;
+    sp.position=new BABYLON.Vector3(wallPos.x+rand(-4,4),rand(1,6),wallPos.z+rand(-1,1));
+    const angle=rand(0,Math.PI*2);const spd=rand(8,18);
+    sp._vel=new BABYLON.Vector3(Math.cos(angle)*spd,rand(5,15),Math.sin(angle)*spd-5);
+    sp._rotVel=new BABYLON.Vector3(rand(-15,15),rand(-15,15),rand(-15,15));
+    sp._life=rand(0.3,0.8);sp._startLife=sp._life;
+    particleMeshes.push(sp);
+  }
+
+  // 3) DUST CLOUD — larger fading boxes
+  for(let i=0;i<8;i++){
+    const d=BABYLON.MeshBuilder.CreateBox('dust',{size:rand(0.5,1.2)},scene);
+    const dm=makeSimpleMat('dm',0.85,0.82,0.75);dm.alpha=0.6;dm.transparencyMode=2;
+    d.material=dm;
+    d.position=new BABYLON.Vector3(wallPos.x+rand(-3,3),rand(1,4),wallPos.z);
+    d._vel=new BABYLON.Vector3(rand(-4,4),rand(1,5),rand(-6,-1));
+    d._rotVel=new BABYLON.Vector3(rand(-2,2),rand(-2,2),rand(-2,2));
+    d._life=rand(0.5,1.0);d._startLife=d._life;d._isDust=true;
+    particleMeshes.push(d);
+  }
+}
+
+// ============ UPDATE ============
+// (lastTime removed — render loop uses lastT)
+function update(dt){
+  if(state!=='playing')return;
+  if(freezeTimer>0){freezeTimer-=dt;return}
+  gameTime+=dt;const tier=getTier();const speed=tier[1]*15;
+  runnerZ+=speed*dt;mascotRoot.position.z=runnerZ;
+  const bob=Math.sin(gameTime*10)*0.15;mascotRoot.position.y=bob>0?bob:0;
+  legL.rotation.x=Math.sin(gameTime*12)*0.5;legR.rotation.x=-Math.sin(gameTime*12)*0.5;
+
+  // Camera
+  camera.position.z=lerp(camera.position.z,runnerZ-8,dt*5);camera.position.y=9;camera.position.x=0;
+  const distToWall=wallZ-runnerZ;
+  camera.fov=lerp(1.05,0.95,clamp(1-distToWall/30,0,1));
+  camera.setTarget(new BABYLON.Vector3(0,1.5,runnerZ+20));
+
+  // Floating brick
+  const brickBob=Math.sin(gameTime*3)*0.25;
+  floatRoot.position=new BABYLON.Vector3(0,2.8+brickBob,runnerZ+4.5);
+  floatRoot.rotation.y=Math.sin(gameTime*0.8)*0.12;
+  if(tapAnim>0){tapAnim=Math.max(0,tapAnim-dt*8);floatRoot.scaling=tapAnim>0.66?new BABYLON.Vector3(1.3,0.7,1):tapAnim>0.33?new BABYLON.Vector3(0.85,1.15,1):BABYLON.Vector3.One()}
+  else floatRoot.scaling=BABYLON.Vector3.One();
+
+  // Move skybox
+  skybox.position.z=runnerZ;
+  // Move environment
+  const gZ=runnerZ+TRACK_LEN/2-20;
+  road.position.z=gZ;grassL.position.z=gZ;grassR.position.z=gZ;curbL.position.z=gZ;curbR.position.z=gZ;
+  buildings.forEach(b=>{if(b.position.z<runnerZ-20)b.position.z+=TRACK_LEN});
+  trains.forEach(t=>{if(t.position.z<runnerZ-15)t.position.z+=TRACK_LEN});
+  trees.forEach(t=>{if(t.position.z<runnerZ-20)t.position.z+=TRACK_LEN});
+  clouds.forEach(c=>{c.position.x+=c._speed*dt;if(c.position.x>40)c.position.x=-40;c.position.z=runnerZ+(c.position.z%150)});
+  laneGroup.forEach(d=>{if(d.position.z<runnerZ-5)d.position.z+=240});
+  dirLight.position.z=runnerZ+10;
+
+  // Coins
+  coinMeshes.forEach(c=>{if(c._collected)return;c.rotation.y+=dt*3;c.position.y=1.5+Math.sin(gameTime*2+c.position.x)*0.3;
+    if(Math.abs(c.position.z-runnerZ)<1.5&&Math.abs(c.position.x)<2){c._collected=true;c.setEnabled(false);coins++;totalCoins++;localStorage.setItem('brickrun_coins',''+totalCoins)}});
+
+  // Collision — Level 1 (walls 1-10): shape only. Level 2+ (walls 11+): shape + color
+  if(!matchAnim.active&&!crashAnim.active){
+    const shapeMatch=currentShapeIdx===wallGapShapeIdx;
+    const colorMatch=currentColorIdx===wallGapColorIdx;
+    const needColor=wallsCleared>=10; // Level 2 starts at wall 11
+    const fullMatch=shapeMatch&&(needColor?colorMatch:true);
+    if(distToWall<=8&&fullMatch)triggerCollapse(distToWall);
+    else if(distToWall<=0)triggerCrash();
+  }
+
+  // ====== FIT → HOLD → EXPLODE ======
+  if(matchAnim.active){
+    matchAnim.t+=dt*2.2;
+
+    // The gap's world position: wallRoot has _gapCenterX/Y in local coords
+    // The floating brick's children are offset from floatRoot center
+    // To dock: move floatRoot so its children align with the gap cells
+    // Gap center = wallRoot.position + _gapCenter offset
+    const gapWorldX=(wallRoot._gapCenterX||0);
+    const gapWorldY=(wallRoot._gapCenterY||3);
+    const gapWorldZ=wallZ;
+
+    // Phase 1 (0→0.25): Brick flies straight at the gap hole
+    if(matchAnim.t<0.25){
+      const ft=clamp(matchAnim.t/0.25,0,1);
+      const ease=ft*ft*(3-2*ft); // smoothstep
+      floatRoot.position.x=lerp(0,gapWorldX,ease);
+      floatRoot.position.z=lerp(runnerZ+4.5,gapWorldZ,ease);
+      floatRoot.position.y=lerp(2.8,gapWorldY,ease);
+      floatRoot.setEnabled(true);
+      floatRoot.rotation.y=0;
+      floatRoot.scaling=BABYLON.Vector3.One();
+      camera.fov=lerp(1.05,0.9,ft);
+    }
+
+    // Phase 2 (0.25→0.45): DOCKED — brick sits inside the hole. Player sees the fit.
+    else if(matchAnim.t<0.45){
+      floatRoot.position.x=gapWorldX;
+      floatRoot.position.z=gapWorldZ;
+      floatRoot.position.y=gapWorldY;
+      floatRoot.scaling=BABYLON.Vector3.One();
+      floatRoot.rotation.y=0;
+      floatRoot.rotation.x=0;
+      floatRoot.rotation.z=0;
+
+      if(!matchAnim.docked){
+        matchAnim.docked=true;
+        shakeMag=0.25;
+        vibrate(40);
+      }
+    }
+
+    // Phase 3 (0.45→0.5): EXPLODE
+    else if(matchAnim.t<0.5){
+      if(!matchAnim.exploded){
+        matchAnim.exploded=true;
+        shakeMag=1.2;
+        $flash.style.background=BCOLS_HEX[wallGapColorIdx];$flash.style.opacity='0.3';
+        setTimeout(()=>$flash.style.opacity='0',180);
+        spawnExplosion();
+        camera.fov=0.8;
+        vibrate([30,15,60,15,80]);
+      }
+      wallRoot.setEnabled(false);
+    }
+
+    // Phase 4 (0.5→1.0): Debris + recovery + next wall
+    else {
+      floatRoot.setEnabled(false);
+      wallRoot.setEnabled(false);
+      const recovT=clamp((matchAnim.t-0.5)/0.3,0,1);
+      camera.fov=lerp(0.8,1.05,recovT*recovT);
+
+      if(matchAnim.t>=1.0){
+        matchAnim.docked=false;
+        matchAnim.active=false;matchAnim.exploded=false;
+        wallsCleared++;
+        const perfect=matchAnim.triggerDist>5,pts=(10+(perfect?5:0))*combo;score+=pts;
+        showScorePopup(perfect?'+'+pts+' PERFECT!':'+'+pts,perfect?'#FFCC00':'#FFFFFF');
+        combo=Math.min(combo+1,10);
+        if(combo>=2)showCombo('x'+combo+' COMBO!');
+        if(wallsCleared===10){
+          showCombo('LEVEL 2: MATCH COLOR!');
+          document.getElementById('tap-hint-left').style.opacity='0.7';
+          document.getElementById('tap-hint-right').style.opacity='0.7';
+          document.getElementById('color-bar').style.opacity='1';
+          document.getElementById('tap-hint-center').style.opacity='0';
+          document.getElementById('divider-line').style.background='rgba(255,255,255,0.15)';
+        }
+        if(wallsCleared>=3&&wallsCleared<10){
+          document.getElementById('tap-hint-center').style.opacity='0';
+        }
+        floatRoot.setEnabled(true);wallRoot.setEnabled(true);
+        camera.fov=1.05;
+        generateWall();updateHUD();
+      } // end if t>=1
+    } // end else (phase 4)
+  } // end matchAnim.active
+
+  // Crash
+  // ====== DRAMATIC CRASH ANIMATIONS (4 types) ======
+  if(crashAnim.active){
+    crashAnim.t+=dt*1.0; // slower for dramatic effect
+    const t=crashAnim.t;
+    const S=1.3; // base scale
+
+    if(crashAnim.type==='pancake'){
+      // PANCAKE: mascot slams flat against wall like a cartoon
+      const flatT=clamp(t*3,0,1);
+      const easeOut=1-Math.pow(1-flatT,3);
+      mascotRoot.scaling=new BABYLON.Vector3(S*(1+easeOut*0.8),S*(1-easeOut*0.7),S*(1+easeOut*1.2));
+      mascotRoot.position.z=crashAnim.startZ+flatT*0.3; // push into wall
+      // Slow slide down after flattening
+      if(t>0.4) mascotRoot.position.y=lerp(0,-2,clamp((t-0.4)/0.6,0,1));
+      // Wobble
+      mascotRoot.rotation.z=Math.sin(t*15)*0.15*(1-clamp(t,0,1));
+    }
+
+    else if(crashAnim.type==='bounce'){
+      // BOUNCE: hits wall, bounces backward, tumbles
+      if(t<0.15){
+        // Impact squash
+        const imp=t/0.15;
+        mascotRoot.scaling=new BABYLON.Vector3(S*(1+imp*0.5),S*(1-imp*0.4),S);
+        shakeMag=Math.max(shakeMag,1.0);
+      } else if(t<0.8){
+        // Bounce backward in an arc
+        const bounceT=(t-0.15)/0.65;
+        const arcY=Math.sin(bounceT*Math.PI)*4; // parabolic arc
+        mascotRoot.position.z=crashAnim.startZ-bounceT*8;
+        mascotRoot.position.y=arcY;
+        mascotRoot.rotation.x=bounceT*Math.PI*2; // tumble forward
+        mascotRoot.scaling=new BABYLON.Vector3(S,S,S);
+      } else {
+        // Land on ground
+        mascotRoot.position.y=0;
+        mascotRoot.rotation.x=Math.PI; // upside down
+      }
+    }
+
+    else if(crashAnim.type==='spin'){
+      // SPIN: hits wall and spins wildly like a top
+      const spinSpeed=t<0.3?t/0.3*25:25*(1-clamp((t-0.3)/0.7,0,1));
+      mascotRoot.rotation.y+=spinSpeed*dt;
+      mascotRoot.rotation.z=Math.sin(t*8)*0.3;
+      // Rise up then fall
+      if(t<0.4) mascotRoot.position.y=t/0.4*3;
+      else mascotRoot.position.y=lerp(3,0,clamp((t-0.4)/0.5,0,1));
+      // Shrink away
+      const shrink=1-clamp((t-0.5)/0.5,0,1)*0.5;
+      mascotRoot.scaling=new BABYLON.Vector3(S*shrink,S*shrink,S*shrink);
+    }
+
+    else if(crashAnim.type==='launch'){
+      // LAUNCH: bounces off wall and flies UP into the sky
+      if(t<0.1){
+        // Quick squash on impact
+        const imp=t/0.1;
+        mascotRoot.scaling=new BABYLON.Vector3(S*(1+imp*0.3),S*(1-imp*0.5),S);
+      } else {
+        // Launch upward and backward — flies off screen
+        const flyT=(t-0.1)/0.9;
+        const easeIn=flyT*flyT;
+        mascotRoot.position.y=easeIn*30; // fly up fast
+        mascotRoot.position.z=crashAnim.startZ-flyT*5;
+        mascotRoot.rotation.x=-flyT*Math.PI*3; // backflip
+        mascotRoot.rotation.z=flyT*Math.PI*0.5;
+        mascotRoot.scaling=new BABYLON.Vector3(S,S,S);
+        // Tiny star effect — getting smaller as it flies away
+        const shrink=1-easeIn*0.8;
+        mascotRoot.scaling=new BABYLON.Vector3(S*shrink,S*shrink,S*shrink);
+      }
+    }
+
+    // Game over after animation completes
+    if(t>=1.2){
+      mascotRoot.rotation=BABYLON.Vector3.Zero();
+      state='gameover';
+      if(score>highScore){highScore=score;localStorage.setItem('brickrun_high',''+highScore)}
+      document.getElementById('go-score').textContent='SCORE: '+score;
+      document.getElementById('go-walls').textContent='WALLS: '+wallsCleared;
+      document.getElementById('go-best').textContent='BEST: '+highScore;
+      const isNew=score>0&&score>=highScore;
+      document.getElementById('go-newbest').style.display=isNew?'block':'none';
+      $goScr.classList.remove('hidden');
+    }
+  }
+
+  // Particle physics — epic destruction
+  while(particleMeshes.length>120){particleMeshes.shift().dispose()}
+  for(let i=particleMeshes.length-1;i>=0;i--){const p=particleMeshes[i];p._life-=dt;
+    if(p._life<=0){p.dispose();particleMeshes.splice(i,1);continue}
+    // Gravity
+    p._vel.y-=18*dt;
+    // Movement
+    p.position.x+=p._vel.x*dt;p.position.y+=p._vel.y*dt;p.position.z+=p._vel.z*dt;
+    // Air resistance
+    p._vel.x*=(1-dt*0.8);p._vel.z*=(1-dt*0.8);
+    // Rotation
+    p.rotation.x+=p._rotVel.x*dt;p.rotation.y+=p._rotVel.y*dt;p.rotation.z+=p._rotVel.z*dt;
+    // Bounce off ground with energy loss
+    if(p.position.y<0.2){p.position.y=0.2;p._vel.y*=-0.35;p._vel.x*=0.6;p._vel.z*=0.6;
+      p._rotVel.x*=0.5;p._rotVel.y*=0.5;p._rotVel.z*=0.5}
+    // Fade + shrink over lifetime
+    const lifeRatio=p._life/(p._startLife||1);
+    p.visibility=clamp(lifeRatio*2,0,1);
+    if(p._isDust){p.scaling=new BABYLON.Vector3(1+lifeRatio,1+lifeRatio,1+lifeRatio);p.visibility=lifeRatio*0.4}
+    else if(lifeRatio<0.3){const s=lifeRatio/0.3;p.scaling=new BABYLON.Vector3(s,s,s)}
+  }
+
+  // Shake
+  if(shakeMag>0){shakeMag*=Math.pow(0.02,dt);camera.position.x=rand(-shakeMag,shakeMag);camera.position.y=9+rand(-shakeMag,shakeMag);if(shakeMag<0.01){shakeMag=0;camera.position.x=0;camera.position.y=9}}
+  if(scorePopupTimer>0){scorePopupTimer-=dt;$scorePop.style.transform='translate(-50%,'+((-50-(1.2-scorePopupTimer)*20))+'%) scale(1)';if(scorePopupTimer<=0)$scorePop.style.opacity='0'}
+  if(comboTimer>0){comboTimer-=dt;if(comboTimer<=0)$combo.style.opacity='0'}
+}
+
+// ============ GAME LOOP ============
+let lastT=0;
+engine.runRenderLoop(()=>{
+  const now=performance.now();if(!lastT)lastT=now;
+  let dt=(now-lastT)/1000;lastT=now;dt=Math.min(dt,0.05);
+  update(dt);scene.render();
+});
+window.addEventListener('resize',()=>engine.resize());
+</script>
+</body>
+</html>
