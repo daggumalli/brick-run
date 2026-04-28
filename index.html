@@ -7,11 +7,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Lilita+One&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;background:#000;font-family:'Lilita One','Arial Black',sans-serif}
+html,body{width:100%;height:100%;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;background:#000;font-family:'Lilita One','Arial Black',sans-serif;position:fixed;top:0;left:0}
 #renderCanvas{width:100%;height:100%;display:block;outline:none}
-#hud{position:absolute;top:0;left:0;width:100%;pointer-events:none;z-index:10}
+#hud{position:absolute;top:0;left:0;width:100%;pointer-events:none;z-index:10;transition:opacity 0.3s}
+body.state-start #hud,body.state-gameover #hud{opacity:0}
+body.state-start #tap-hint-center,body.state-gameover #tap-hint-center,body.state-start #shape-bar,body.state-gameover #shape-bar,body.state-start #color-bar,body.state-gameover #color-bar,body.state-start #tap-hint-left,body.state-start #tap-hint-right,body.state-gameover #tap-hint-left,body.state-gameover #tap-hint-right{opacity:0!important;visibility:hidden}
+body.state-start #divider-line,body.state-gameover #divider-line{opacity:0}
 #hud-top{display:flex;justify-content:space-between;padding:12px 60px 0 16px;font-size:18px;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,0.6)}
-.overlay{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);pointer-events:auto;transition:opacity 0.3s;z-index:20}
+.overlay{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;background:rgba(0,0,0,0.55);pointer-events:auto;transition:opacity 0.3s;z-index:20;overflow-y:auto;padding:24px 0 32px;-webkit-overflow-scrolling:touch}
+.overlay::-webkit-scrollbar{display:none}.overlay{scrollbar-width:none}
 .overlay.hidden{opacity:0;pointer-events:none}
 .overlay h1{font-size:clamp(40px,14vw,72px);color:#FFCC00;text-shadow:0 4px 12px rgba(0,0,0,0.6)}
 .overlay h2{font-size:clamp(14px,4vw,20px);color:#fff;font-weight:normal;margin-bottom:24px}
@@ -33,7 +37,7 @@ html,body{width:100%;height:100%;overflow:hidden;touch-action:none;user-select:n
 #combo-text{position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);font-size:32px;color:#F5A623;text-shadow:0 2px 8px rgba(0,0,0,0.6);pointer-events:none;z-index:11;opacity:0;transition:opacity 0.3s}
 #score-popup{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);font-size:26px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.6);pointer-events:none;z-index:11;opacity:0}
 #flash-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9;opacity:0;transition:opacity 0.15s}
-#mute-btn{position:absolute;top:10px;right:10px;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,0.45);border:2px solid rgba(255,255,255,0.3);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;z-index:30;cursor:pointer;pointer-events:auto;user-select:none;transition:transform .15s}
+#mute-btn{position:fixed;top:10px;right:10px;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,0.45);border:2px solid rgba(255,255,255,0.3);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;z-index:40;cursor:pointer;pointer-events:auto;user-select:none;transition:transform .15s}
 #mute-btn:active{transform:scale(0.92)}
 .milestone-banner{position:absolute;top:38%;left:50%;transform:translate(-50%,-50%) scale(0);font-size:clamp(48px,12vw,96px);color:#FFCC00;text-shadow:0 6px 16px rgba(0,0,0,0.7),0 0 30px rgba(255,204,0,0.6);pointer-events:none;z-index:18;opacity:0;font-weight:900;letter-spacing:2px;white-space:nowrap}
 .milestone-banner.show{animation:milestoneBoom 1.6s cubic-bezier(.2,1.4,.4,1) forwards}
@@ -437,6 +441,9 @@ for(let i=0;i<10;i++){
 
 // ============ GAME STATE ============
 let state='start',score=0,wallsCleared=0,coins=0,combo=1;
+function setGameState(s){state=s;document.body.classList.remove('state-start','state-playing','state-gameover');document.body.classList.add('state-'+s)}
+// Boot in start state
+setTimeout(()=>{document.body.classList.add('state-start')},0);
 let totalCoins=+localStorage.getItem('brickrun_coins')||0;
 let highScore=+localStorage.getItem('brickrun_high')||0;
 // Lifetime + daily stats
@@ -796,47 +803,62 @@ function maybeOfferReviveOrFinalize(){
 }
 
 let _reviveTimer=null;
+let _reviveOnDecline=null; // current decline callback shared by handlers
+let _reviveBusy=false;     // re-entry guard so YES/NO can only fire once
+// Module-level handlers — attached ONCE at boot, never duplicated
+function _reviveYesHandler(e){
+  if(e)e.stopPropagation();
+  if(_reviveBusy)return;
+  ensureAudio();
+  if(totalCoins<50)return;
+  _reviveBusy=true;
+  if(_reviveTimer){clearInterval(_reviveTimer);_reviveTimer=null}
+  totalCoins-=50;localStorage.setItem('brickrun_coins',''+totalCoins);
+  reviveAvailable=false;
+  document.getElementById('revive-modal').classList.add('hidden');
+  doRevive();
+}
+function _reviveNoHandler(e){
+  if(e)e.stopPropagation();
+  if(_reviveBusy)return;
+  ensureAudio();
+  _reviveBusy=true;
+  if(_reviveTimer){clearInterval(_reviveTimer);_reviveTimer=null}
+  document.getElementById('revive-modal').classList.add('hidden');
+  if(_reviveOnDecline){const cb=_reviveOnDecline;_reviveOnDecline=null;cb()}
+}
+// Wire revive buttons exactly once at module init
+(function wireReviveButtons(){
+  const y=document.getElementById('revive-yes');
+  const n=document.getElementById('revive-no');
+  if(y&&!y._wired){y.addEventListener('click',_reviveYesHandler);y._wired=true}
+  if(n&&!n._wired){n.addEventListener('click',_reviveNoHandler);n._wired=true}
+})();
 function showReviveModal(onDecline){
   const modal=document.getElementById('revive-modal');if(!modal){onDecline();return}
   document.getElementById('revive-walls').textContent=wallsCleared;
   document.getElementById('revive-cost').textContent=totalCoins>=50?'50 💰':'NOT ENOUGH';
   modal.classList.remove('hidden');
-  // 5-second countdown to decline
+  _reviveOnDecline=onDecline;
+  _reviveBusy=false;
+  // 5-second countdown to auto-decline
   let secs=5;
   document.getElementById('revive-timer').textContent=secs;
-  if(_reviveTimer)clearInterval(_reviveTimer);
+  if(_reviveTimer){clearInterval(_reviveTimer);_reviveTimer=null}
   _reviveTimer=setInterval(()=>{
     secs--;
     document.getElementById('revive-timer').textContent=secs;
-    if(secs<=0){clearInterval(_reviveTimer);_reviveTimer=null;modal.classList.add('hidden');onDecline()}
+    if(secs<=0){
+      clearInterval(_reviveTimer);_reviveTimer=null;
+      if(!_reviveBusy){_reviveBusy=true;modal.classList.add('hidden');if(_reviveOnDecline){const cb=_reviveOnDecline;_reviveOnDecline=null;cb()}}
+    }
   },1000);
-  // Wire buttons (one-shot)
-  const yes=document.getElementById('revive-yes');
-  const no=document.getElementById('revive-no');
-  const yesH=(e)=>{e.stopPropagation();ensureAudio();
-    if(totalCoins<50)return;
-    if(_reviveTimer)clearInterval(_reviveTimer);_reviveTimer=null;
-    totalCoins-=50;localStorage.setItem('brickrun_coins',''+totalCoins);
-    reviveAvailable=false;
-    modal.classList.add('hidden');
-    cleanup();
-    doRevive();
-  };
-  const noH=(e)=>{e.stopPropagation();ensureAudio();
-    if(_reviveTimer)clearInterval(_reviveTimer);_reviveTimer=null;
-    modal.classList.add('hidden');
-    cleanup();
-    onDecline();
-  };
-  function cleanup(){yes.removeEventListener('click',yesH);no.removeEventListener('click',noH)}
-  yes.addEventListener('click',yesH);
-  no.addEventListener('click',noH);
 }
 
 function doRevive(){
   // Restore: clear crash anim, restore mascot, advance past wall, regenerate next wall
   crashAnim={active:false,t:0};
-  state='playing';
+  setGameState('playing');
   mascotRoot.scaling=new BABYLON.Vector3(1.3,1.3,1.3);
   mascotRoot.rotation=BABYLON.Vector3.Zero();
   setExpression('normal');
@@ -851,7 +873,7 @@ function doRevive(){
 }
 
 function finalizeGameOver(wasNewBest,wasNewBestWalls,wallsFromBest){
-  state='gameover';
+  setGameState('gameover');
   // Daily challenge stats + streak rewards
   let streakReward=0,streakDay=0;
   if(dailyMode){
@@ -964,6 +986,10 @@ function applySpeedEscalation(spd){
 // Utils
 function rand(a,b){const r=(dailyMode&&_dailyRng)?_dailyRng():Math.random();return a+r*(b-a)}
 function randInt(a,b){return Math.floor(rand(a,b+1))}
+// Cosmetic randomness — used for particles, sparkles, trail colors. Always Math.random,
+// independent of seeded daily RNG. Ensures deterministic walls in daily mode.
+function fxRand(a,b){return a+Math.random()*(b-a)}
+function fxRandInt(a,b){return Math.floor(fxRand(a,b+1))}
 function lerp(a,b,t){return a+(b-a)*t}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v))}
 function getTier(){for(const t of TIERS)if(wallsCleared<t[0])return t;return TIERS[6]}
@@ -1230,8 +1256,8 @@ function triggerMilestone(walls){
 // ============ INPUT (left = color, right = shape) ============
 function handleTap(side){
   // side: 'left' or 'right' (or 'any' for menu screens)
-  if(state==='start'){dailyMode=false;state='playing';$startScr.classList.add('hidden');initGame();return}
-  if(state==='gameover'){if(crashAnim.t>1.2){state='start';$goScr.classList.add('hidden');$startScr.classList.remove('hidden');refreshStartScreen()}return}
+  if(state==='start'){dailyMode=false;setGameState('playing');$startScr.classList.add('hidden');initGame();return}
+  if(state==='gameover'){if(crashAnim.t>1.2){setGameState('start');$goScr.classList.add('hidden');$startScr.classList.remove('hidden');refreshStartScreen()}return}
   if(state==='playing'&&!matchAnim.active&&!crashAnim.active){
     const isLevel2=wallsCleared>=10;
     if(!isLevel2||side==='right'){
@@ -1248,8 +1274,16 @@ function handleTap(side){
 }
 function getTapSide(x){return x>window.innerWidth/2?'right':'left'}
 function isUiClick(target){
-  // Ignore clicks on buttons or interactive UI so they don't trigger gameplay tap
-  return target&&(target.tagName==='BUTTON'||(target.closest&&target.closest('button')));
+  // Ignore clicks on UI controls so they don't trigger gameplay tap
+  if(!target)return false;
+  if(target.tagName==='BUTTON')return true;
+  if(!target.closest)return false;
+  // Buttons OR any interactive UI panel inside an overlay
+  return !!(target.closest('button')||
+            target.closest('.char-cell')||
+            target.closest('#missions-panel')||
+            target.closest('#chars-panel')||
+            target.closest('#revive-modal'));
 }
 document.addEventListener('touchstart',e=>{
   if(isUiClick(e.target))return;
@@ -1282,7 +1316,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)lastT=0});
     e.stopPropagation();ensureAudio();
     if(state!=='start')return;
     dailyMode=true;
-    state='playing';$startScr.classList.add('hidden');initGame();
+    setGameState('playing');$startScr.classList.add('hidden');initGame();
     showCombo("🔥 DAILY CHALLENGE");
   });
 })();
@@ -1373,7 +1407,7 @@ function triggerCollapse(dist){
 const CRASH_TYPES=['pancake','bounce','spin','launch'];
 function triggerCrash(){
   const type=CRASH_TYPES[randInt(0,CRASH_TYPES.length-1)];
-  crashAnim={active:true,t:0,type:type,startZ:runnerZ};
+  crashAnim={active:true,t:0,type:type,startZ:runnerZ,handled:false};
   shakeMag=1.5;
   $flash.style.background='#FF0000';$flash.style.opacity='0.4';
   setTimeout(()=>$flash.style.opacity='0',350);
@@ -1395,12 +1429,12 @@ function spawnExplosion(){
     p.position=wp.clone();
     const pm=makeSimpleMat('pm',ec.r,ec.g,ec.b);pm.emissiveColor=new BABYLON.Color3(ec.r*0.15,ec.g*0.15,ec.b*0.15);
     p.material=pm;
-    // Explosion direction: outward from center + upward + backward
+    // Explosion direction: outward from center + upward + backward (cosmetic, use fxRand)
     const dirX=(wp.x-wallPos.x)*2;
-    const dirY=Math.abs(wp.y-3)*1.5+rand(2,8);
-    p._vel=new BABYLON.Vector3(dirX+rand(-3,3),dirY,rand(-12,-2));
-    p._rotVel=new BABYLON.Vector3(rand(-10,10),rand(-10,10),rand(-10,10));
-    p._life=rand(1.2,2.5);p._startLife=p._life;
+    const dirY=Math.abs(wp.y-3)*1.5+fxRand(2,8);
+    p._vel=new BABYLON.Vector3(dirX+fxRand(-3,3),dirY,fxRand(-12,-2));
+    p._rotVel=new BABYLON.Vector3(fxRand(-10,10),fxRand(-10,10),fxRand(-10,10));
+    p._life=fxRand(1.2,2.5);p._startLife=p._life;
     particleMeshes.push(p);
   });
 
@@ -1411,23 +1445,23 @@ function spawnExplosion(){
     const sm=makeSimpleMat('sm',bright?1:0.95,bright?0.95:0.8,bright?0.5:0.2);
     sm.emissiveColor=new BABYLON.Color3(1,0.9,0.4);
     sp.material=sm;
-    sp.position=new BABYLON.Vector3(wallPos.x+rand(-4,4),rand(1,6),wallPos.z+rand(-1,1));
-    const angle=rand(0,Math.PI*2);const spd=rand(8,18);
-    sp._vel=new BABYLON.Vector3(Math.cos(angle)*spd,rand(5,15),Math.sin(angle)*spd-5);
-    sp._rotVel=new BABYLON.Vector3(rand(-15,15),rand(-15,15),rand(-15,15));
-    sp._life=rand(0.3,0.8);sp._startLife=sp._life;
+    sp.position=new BABYLON.Vector3(wallPos.x+fxRand(-4,4),fxRand(1,6),wallPos.z+fxRand(-1,1));
+    const angle=fxRand(0,Math.PI*2);const spd=fxRand(8,18);
+    sp._vel=new BABYLON.Vector3(Math.cos(angle)*spd,fxRand(5,15),Math.sin(angle)*spd-5);
+    sp._rotVel=new BABYLON.Vector3(fxRand(-15,15),fxRand(-15,15),fxRand(-15,15));
+    sp._life=fxRand(0.3,0.8);sp._startLife=sp._life;
     particleMeshes.push(sp);
   }
 
   // 3) DUST CLOUD — larger fading boxes
   for(let i=0;i<8;i++){
-    const d=BABYLON.MeshBuilder.CreateBox('dust',{size:rand(0.5,1.2)},scene);
+    const d=BABYLON.MeshBuilder.CreateBox('dust',{size:fxRand(0.5,1.2)},scene);
     const dm=makeSimpleMat('dm',0.85,0.82,0.75);dm.alpha=0.6;dm.transparencyMode=2;
     d.material=dm;
-    d.position=new BABYLON.Vector3(wallPos.x+rand(-3,3),rand(1,4),wallPos.z);
-    d._vel=new BABYLON.Vector3(rand(-4,4),rand(1,5),rand(-6,-1));
-    d._rotVel=new BABYLON.Vector3(rand(-2,2),rand(-2,2),rand(-2,2));
-    d._life=rand(0.5,1.0);d._startLife=d._life;d._isDust=true;
+    d.position=new BABYLON.Vector3(wallPos.x+fxRand(-3,3),fxRand(1,4),wallPos.z);
+    d._vel=new BABYLON.Vector3(fxRand(-4,4),fxRand(1,5),fxRand(-6,-1));
+    d._rotVel=new BABYLON.Vector3(fxRand(-2,2),fxRand(-2,2),fxRand(-2,2));
+    d._life=fxRand(0.5,1.0);d._startLife=d._life;d._isDust=true;
     particleMeshes.push(d);
   }
 }
@@ -1458,9 +1492,9 @@ function emitComboTrail(dt){
     const sp=BABYLON.MeshBuilder.CreateBox('tr',{size:0.18+Math.random()*0.1},scene);
     const m=makeSimpleMat('trm',r,g,b);m.emissiveColor=new BABYLON.Color3(r*0.6,g*0.6,b*0.6);
     sp.material=m;
-    sp.position=new BABYLON.Vector3(rand(-0.4,0.4),rand(0.3,1.6),runnerZ-1.0+rand(-0.4,0.4));
-    sp._vel=new BABYLON.Vector3(rand(-1.5,1.5),rand(0.5,2.5),rand(-3,-1.5));
-    sp._rotVel=new BABYLON.Vector3(rand(-6,6),rand(-6,6),rand(-6,6));
+    sp.position=new BABYLON.Vector3(fxRand(-0.4,0.4),fxRand(0.3,1.6),runnerZ-1.0+fxRand(-0.4,0.4));
+    sp._vel=new BABYLON.Vector3(fxRand(-1.5,1.5),fxRand(0.5,2.5),fxRand(-3,-1.5));
+    sp._rotVel=new BABYLON.Vector3(fxRand(-6,6),fxRand(-6,6),fxRand(-6,6));
     sp._life=0.6+Math.random()*0.4;sp._startLife=sp._life;
     particleMeshes.push(sp);
   }
@@ -1715,8 +1749,10 @@ function update(dt){
       }
     }
 
-    // Game over after animation completes
-    if(t>=1.2){
+    // Game over after animation completes — fire ONCE and stop the crash anim
+    if(t>=1.2&&!crashAnim.handled){
+      crashAnim.handled=true;
+      crashAnim.active=false; // stop further updates to crashAnim
       mascotRoot.rotation=BABYLON.Vector3.Zero();
       // Offer revive first (deferred game-over). If unavailable/declined, finalize.
       maybeOfferReviveOrFinalize();
@@ -1746,7 +1782,7 @@ function update(dt){
   }
 
   // Shake
-  if(shakeMag>0){shakeMag*=Math.pow(0.02,dt);camera.position.x=rand(-shakeMag,shakeMag);camera.position.y=9+rand(-shakeMag,shakeMag);if(shakeMag<0.01){shakeMag=0;camera.position.x=0;camera.position.y=9}}
+  if(shakeMag>0){shakeMag*=Math.pow(0.02,dt);camera.position.x=fxRand(-shakeMag,shakeMag);camera.position.y=9+fxRand(-shakeMag,shakeMag);if(shakeMag<0.01){shakeMag=0;camera.position.x=0;camera.position.y=9}}
   if(scorePopupTimer>0){scorePopupTimer-=dt;$scorePop.style.transform='translate(-50%,'+((-50-(1.2-scorePopupTimer)*20))+'%) scale(1)';if(scorePopupTimer<=0)$scorePop.style.opacity='0'}
   if(comboTimer>0){comboTimer-=dt;if(comboTimer<=0)$combo.style.opacity='0'}
 }

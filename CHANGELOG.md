@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.3.1 — QA Pass (2026-04-28)
+
+Three iterations of pro-QA testing surfaced ~12 issues; all critical and important fixed.
+
+### Critical fixes
+- **Bug #9**: `maybeOfferReviveOrFinalize()` fired every frame after `crashAnim.t>=1.2`, stacking event listeners on the revive modal and resetting the auto-decline timer. Now fires exactly once via a `crashAnim.handled` flag.
+- **Bug #10**: Document-level `mousedown` handler intercepted clicks on `.char-cell` divs and other clickable UI panels, starting the game instead of unlocking characters / claiming missions. `isUiClick()` now also accepts `.char-cell`, `#missions-panel`, `#chars-panel`, `#revive-modal`.
+- **Bug #11**: `document.documentElement.scrollTop` got pushed by 107px on certain interactions, hiding the title and mute button. Fixed by switching overlays to `position:fixed` and adding `position:fixed` to html/body.
+- **Bug #12**: Revive YES button charged the player N×50 coins because event listeners stacked across game sessions. Replaced with module-level handlers wired exactly once at boot, plus an `_reviveBusy` re-entry guard.
+
+### Important fixes
+- **Bug #1**: Start screen content (~972px) overflowed viewports under 800px tall — bottom 4 characters were unreachable. Made overlays `overflow-y:auto` with proper padding so all content is scrollable on every screen size.
+- **Bug #2**: HUD (wall counter, coins, score) was visible behind the start-screen overlay. Now hidden via `body.state-start #hud { opacity: 0 }`.
+- **Bug #3**: In-game "TAP!" hint was visible behind the game-over overlay. Now hidden via state-class CSS.
+- **Bug #4**: HUD wall counter showed the next wall (e.g., "WALL 2") on game over instead of the cleared count. Now hidden during game over.
+- **Bug #6**: Daily challenge mode was non-deterministic — cosmetic effects (combo trail particles, screen shake) consumed the seeded RNG, advancing it differently between runs. Split rand into `rand()` (seeded, used only for world generation: walls, coins, emoji selection, crash type) and `fxRand()` (always Math.random, used for cosmetic particles + shake). Verified bit-for-bit identical 5-wall sequences across two fresh seed runs.
+
+### Architecture / state management
+- New `setGameState(s)` helper updates a body class (`state-start`, `state-playing`, `state-gameover`) so CSS can drive HUD visibility, hint hiding, etc. Replaces ad-hoc `state='X'` assignments.
+- Boot wires HTML body to `state-start` so new players see the start screen with HUD hidden.
+
+### Pro-QA pass methodology
+- 3 test iterations × full feature flow:
+  1. Boot, click resolution (chars, missions, daily, mute, share)
+  2. Gameplay (NICE/PERFECT/CLUTCH/INSANE tier verification across 8+ walls)
+  3. Crash + revive (single-charge, re-entry guard, second-crash falls through to game over)
+  4. Daily determinism (seeded sequences match across runs)
+  5. Mobile viewport 375×812 (start screen scroll, gameplay, game over)
+  6. Full E2E: start → play 5 walls → crash → revive → play 3 more → 2nd crash → final game over
+- Result: zero console errors, all flows pass, single -50 charge on revive, body class transitions clean.
+
+---
+
 ## v0.3.0 — Hooked Pack (2026-04-27)
 
 The retention layer. Players now have **reasons to come back tomorrow** beyond just chasing a score:
