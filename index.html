@@ -299,7 +299,7 @@ pipeline.imageProcessing.toneMappingType=BABYLON.ImageProcessingConfiguration.TO
 
 // Glow layer for wall gap
 const glowLayer=new BABYLON.GlowLayer('glow',scene);
-glowLayer.intensity=0.6;
+glowLayer.intensity=0.4; // moderate — strong enough up close, doesn't dominate from far
 
 // ---- Material helpers ----
 function makeMat(name,color,rough){
@@ -1146,7 +1146,13 @@ let currentEmoji=null;
 const wallMatCache={};
 function buildWall(){
   wallMeshes.forEach(m=>{shadowGen.removeShadowCaster(m);m.getChildMeshes().forEach(c=>c.dispose());m.dispose()});wallMeshes=[];
-  gapGlowMeshes.forEach(m=>m.dispose());gapGlowMeshes=[];
+  // Remove from glow layer FIRST, then dispose. Otherwise the layer caches a bright
+  // bloom buffer that flashes as a colored spot when the next wall spawns.
+  gapGlowMeshes.forEach(m=>{
+    try{glowLayer.removeIncludedOnlyMesh(m)}catch(e){}
+    m.dispose();
+  });
+  gapGlowMeshes=[];
 
   // Pick a random emoji
   currentEmoji=EMOJIS[randInt(0,EMOJIS.length-1)];
@@ -1196,7 +1202,7 @@ function buildWall(){
     const hm=makeSimpleMat('hm',0.03,0.03,0.03);hole.material=hm;gapGlowMeshes.push(hole);
     // Glowing border
     const gm=makeSimpleMat('gm',gc.r,gc.g,gc.b);
-    gm.emissiveColor=new BABYLON.Color3(gc.r*0.9,gc.g*0.9,gc.b*0.9);
+    gm.emissiveColor=new BABYLON.Color3(gc.r*0.6,gc.g*0.6,gc.b*0.6); // dimmed — the wall reads first, glow accents second
     const border=BABYLON.MeshBuilder.CreateBox('gb',{width:BW+0.2,height:BH+0.2,depth:BD+0.1},scene);
     border.position=new BABYLON.Vector3(gx,gy,-0.15);border.parent=wallRoot;border.material=gm;
     glowLayer.addIncludedOnlyMesh(border);gapGlowMeshes.push(border);
