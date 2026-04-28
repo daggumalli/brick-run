@@ -47,6 +47,45 @@ html,body{width:100%;height:100%;overflow:hidden;touch-action:none;user-select:n
 .daily-btn{padding:10px 22px;font-size:18px;font-family:inherit;color:#fff;background:linear-gradient(180deg,#FF6B5B,#E04545);border:none;border-radius:24px;box-shadow:0 4px 0 #8A1F1F;cursor:pointer;pointer-events:auto;margin-top:14px;letter-spacing:1px}
 .daily-btn:active{transform:translateY(2px);box-shadow:0 2px 0 #8A1F1F}
 .meta-stats{margin-top:18px;font-size:14px;color:rgba(255,255,255,0.75);text-align:center;line-height:1.6}
+#missions-panel{margin-top:18px;width:min(92%,420px);background:rgba(0,0,0,0.45);border-radius:14px;padding:14px 16px;color:#fff;text-align:left;font-size:14px;backdrop-filter:blur(2px)}
+.missions-title{font-size:18px;color:#FFCC00;margin-bottom:10px;letter-spacing:1px;text-align:center}
+.mission-row{margin-bottom:10px;padding:8px 10px;background:rgba(255,255,255,0.06);border-radius:8px;border:1px solid rgba(255,255,255,0.1);position:relative}
+.mission-text{font-size:13px;color:#fff;margin-bottom:6px}
+.mission-bar{height:6px;background:rgba(0,0,0,0.4);border-radius:4px;overflow:hidden;margin-bottom:5px}
+.mission-fill{height:100%;background:linear-gradient(90deg,#66E0FF,#FFCC00);transition:width 0.4s}
+.mission-prog{font-size:11px;color:rgba(255,255,255,0.6);letter-spacing:.5px}
+.mission-claim{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:linear-gradient(180deg,#FFE266,#FFB400);color:#000;border:none;border-radius:8px;padding:6px 12px;font-family:inherit;font-size:13px;font-weight:bold;cursor:pointer;box-shadow:0 3px 0 #B07000;pointer-events:auto;animation:claimPulse 1s ease-in-out infinite}
+.mission-claim:active{transform:translateY(-50%) translateY(2px);box-shadow:0 1px 0 #B07000}
+@keyframes claimPulse{0%,100%{transform:translateY(-50%) scale(1)}50%{transform:translateY(-50%) scale(1.06)}}
+.mission-claimed{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#66EEAA;font-size:12px;font-weight:bold}
+.streak-preview{margin-top:8px;font-size:13px;color:rgba(255,200,80,0.95);text-align:center;letter-spacing:.3px}
+#chars-panel{margin-top:14px;width:min(92%,420px);background:rgba(0,0,0,0.45);border-radius:14px;padding:12px;color:#fff;text-align:left}
+.chars-title{font-size:18px;color:#FFCC00;margin-bottom:10px;text-align:center;letter-spacing:1px}
+.chars-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.char-cell{position:relative;aspect-ratio:1;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.15);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s,border-color .15s,background .15s;pointer-events:auto;font-size:11px}
+.char-cell:active{transform:scale(0.96)}
+.char-cell.locked{opacity:0.55}
+.char-cell.locked .char-emoji{filter:grayscale(0.85)}
+.char-cell.active{border-color:#FFCC00;background:rgba(255,204,0,0.18);box-shadow:0 0 14px rgba(255,204,0,0.4)}
+.char-cell.owned{border-color:rgba(102,238,170,0.55)}
+.char-emoji{font-size:28px;margin-bottom:2px}
+.char-name{font-size:10px;color:rgba(255,255,255,0.85);letter-spacing:.5px;text-transform:uppercase}
+.char-cost{font-size:10px;color:#FFCC00;margin-top:2px}
+.char-lock{position:absolute;top:4px;right:4px;font-size:11px}
+
+#revive-modal{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);z-index:35;pointer-events:auto;transition:opacity 0.25s}
+#revive-modal.hidden{opacity:0;pointer-events:none}
+#revive-modal h2{font-size:clamp(36px,9vw,56px);color:#66E0FF;text-shadow:0 4px 14px rgba(102,224,255,0.6);margin-bottom:8px;letter-spacing:2px}
+#revive-modal .revive-stat{font-size:22px;color:#fff;margin:6px 0}
+#revive-modal .revive-stat b{color:#FFCC00}
+.revive-buttons{display:flex;gap:14px;margin-top:24px}
+#revive-yes{padding:16px 28px;font-size:22px;font-family:inherit;font-weight:bold;color:#000;background:linear-gradient(180deg,#FFE266,#FFB400);border:none;border-radius:30px;box-shadow:0 6px 0 #B07000,0 8px 14px rgba(0,0,0,0.4);cursor:pointer;letter-spacing:1px}
+#revive-yes:active{transform:translateY(3px);box-shadow:0 3px 0 #B07000,0 4px 8px rgba(0,0,0,0.4)}
+#revive-no{padding:14px 22px;font-size:18px;font-family:inherit;color:#fff;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);border-radius:24px;cursor:pointer;letter-spacing:1px}
+#revive-timer-row{margin-top:14px;font-size:14px;color:rgba(255,255,255,0.65)}
+#revive-timer{font-weight:bold;color:#FF6B5B}
+#go-soclose{font-size:16px;color:#FF8855;margin:8px 0;text-align:center}
+#go-streak{font-size:16px;color:#FFCC00;margin:8px 0;text-align:center}
 </style>
 </head>
 <body>
@@ -69,10 +108,12 @@ html,body{width:100%;height:100%;overflow:hidden;touch-action:none;user-select:n
   <h1>BRICK RUN</h1>
   <h2>Match the brick. Break the wall!</h2>
   <div class="stats" id="start-best">BEST: 0</div>
-  <div class="stats" id="start-coins">TOTAL COINS: 0</div>
+  <div class="stats" id="start-coins">💰 0</div>
   <div class="tap-prompt">TAP TO PLAY</div>
   <button id="daily-btn" class="daily-btn" type="button">🔥 DAILY CHALLENGE</button>
   <div class="meta-stats" id="meta-stats"></div>
+  <div id="missions-panel"></div>
+  <div id="chars-panel"></div>
 </div>
 <div class="overlay hidden" id="gameover-screen">
   <h1 class="gameover-title">OH NO!</h1>
@@ -80,8 +121,20 @@ html,body{width:100%;height:100%;overflow:hidden;touch-action:none;user-select:n
   <div class="stats white" id="go-walls">WALLS: 0</div>
   <div class="stats" id="go-best">BEST: 0</div>
   <div class="stats" id="go-newbest" style="display:none">⭐ NEW BEST! ⭐</div>
+  <div id="go-soclose" style="display:none"></div>
+  <div id="go-streak" style="display:none"></div>
   <button id="share-btn" class="share-btn" type="button">📤 SHARE MY RUN</button>
   <div class="tap-prompt">TAP TO RETRY</div>
+</div>
+<div id="revive-modal" class="hidden">
+  <h2>💔 SO CLOSE!</h2>
+  <div class="revive-stat">You died at <b id="revive-walls">0</b> walls</div>
+  <div class="revive-stat">Continue from where you fell?</div>
+  <div class="revive-buttons">
+    <button id="revive-yes" type="button">✨ REVIVE — <span id="revive-cost">50 💰</span></button>
+    <button id="revive-no" type="button">No thanks</button>
+  </div>
+  <div id="revive-timer-row">Auto-decline in <span id="revive-timer">5</span>s</div>
 </div>
 
 <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -393,6 +446,125 @@ let lifetimeBestCombo=+localStorage.getItem('brickrun_lt_best_combo')||0;
 let dailyStreak=+localStorage.getItem('brickrun_daily_streak')||0;
 let dailyLast=localStorage.getItem('brickrun_daily_last')||'';
 let dailyBest=+localStorage.getItem('brickrun_daily_best')||0;
+let lifetimeBestWalls=+localStorage.getItem('brickrun_lt_best_walls')||0; // for "N walls from best" messaging
+// ====== DAILY MISSIONS POOL ======
+const MISSION_POOL=[
+  {id:'walls10',  text:'Clear 10 walls in one run',           goal:10, reward:60,  type:'walls_run'},
+  {id:'walls25',  text:'Clear 25 walls in one run',           goal:25, reward:150, type:'walls_run'},
+  {id:'combo5',   text:'Reach a 5x combo',                    goal:5,  reward:80,  type:'combo'},
+  {id:'combo8',   text:'Reach an 8x combo',                   goal:8,  reward:140, type:'combo'},
+  {id:'coins30',  text:'Collect 30 coins (across runs)',      goal:30, reward:50,  type:'coins'},
+  {id:'coins75',  text:'Collect 75 coins (across runs)',      goal:75, reward:120, type:'coins'},
+  {id:'perf3',    text:'Land 3 PERFECT or better',            goal:3,  reward:90,  type:'perfect'},
+  {id:'clutch2',  text:'Land 2 CLUTCH! matches',              goal:2,  reward:120, type:'clutch'},
+  {id:'insane1',  text:'Land 1 INSANE!! match',               goal:1,  reward:200, type:'insane'},
+  {id:'walls5_d', text:'Clear 5 walls in DAILY mode',         goal:5,  reward:100, type:'walls_daily'},
+  {id:'fits20',   text:'Smash 20 walls (across runs)',        goal:20, reward:80,  type:'fits_total'},
+];
+const STREAK_REWARDS=[50,100,150,250,400,600,1000]; // 7-day cycle
+
+// ====== CHARACTER ROSTER ======
+// Each: id, name, body color, belly color, accent (crown/cap) color, cost (coins)
+// First one (king) is free + default
+const CHARACTERS=[
+  {id:'king',     name:'KING',      body:[0.20,0.47,0.80], belly:[0.45,0.65,0.90], accent:[0.95,0.78,0.10], emoji:'👑', cost:0},
+  {id:'pirate',   name:'PIRATE',    body:[0.55,0.10,0.10], belly:[0.85,0.40,0.20], accent:[0.10,0.10,0.10], emoji:'🏴‍☠️', cost:200},
+  {id:'astronaut',name:'ASTRONAUT', body:[0.92,0.92,0.95], belly:[0.78,0.80,0.85], accent:[0.55,0.78,0.95], emoji:'👨‍🚀', cost:500},
+  {id:'ninja',    name:'NINJA',     body:[0.10,0.10,0.13], belly:[0.30,0.30,0.35], accent:[0.85,0.10,0.15], emoji:'🥷', cost:800},
+  {id:'vampire',  name:'VAMPIRE',   body:[0.30,0.05,0.30], belly:[0.55,0.20,0.40], accent:[0.85,0.10,0.10], emoji:'🧛', cost:1200},
+  {id:'wizard',   name:'WIZARD',    body:[0.40,0.20,0.65], belly:[0.65,0.50,0.85], accent:[0.95,0.78,0.10], emoji:'🧙', cost:1800},
+  {id:'robot',    name:'ROBOT',     body:[0.50,0.55,0.62], belly:[0.75,0.78,0.82], accent:[0.20,0.85,0.95], emoji:'🤖', cost:2500},
+  {id:'champion', name:'CHAMPION',  body:[0.95,0.75,0.10], belly:[1.00,0.92,0.55], accent:[0.85,0.20,0.20], emoji:'🏆', cost:5000},
+];
+let ownedCharacters=null;
+let activeCharId=localStorage.getItem('brickrun_char_active')||'king';
+function loadOwnedCharacters(){
+  try{ownedCharacters=JSON.parse(localStorage.getItem('brickrun_chars_owned')||'["king"]')}catch(e){ownedCharacters=['king']}
+  if(!ownedCharacters.includes('king'))ownedCharacters.unshift('king');
+}
+function saveOwnedCharacters(){
+  localStorage.setItem('brickrun_chars_owned',JSON.stringify(ownedCharacters));
+}
+function isCharOwned(id){return ownedCharacters&&ownedCharacters.indexOf(id)>=0}
+function getActiveChar(){return CHARACTERS.find(c=>c.id===activeCharId)||CHARACTERS[0]}
+function tryUnlockChar(id){
+  const ch=CHARACTERS.find(c=>c.id===id);if(!ch||isCharOwned(id))return false;
+  if(totalCoins<ch.cost)return false;
+  totalCoins-=ch.cost;localStorage.setItem('brickrun_coins',''+totalCoins);
+  ownedCharacters.push(id);saveOwnedCharacters();
+  playSound('newbest');
+  return true;
+}
+function selectChar(id){
+  if(!isCharOwned(id))return false;
+  activeCharId=id;localStorage.setItem('brickrun_char_active',id);
+  applyActiveCharacter();
+  return true;
+}
+loadOwnedCharacters();
+// Today's missions (3 picked deterministically by date)
+let todaysMissions=null,missionProgress={},missionsClaimed={};
+function loadDailyMissions(){
+  const td=todayStr();
+  const stored=localStorage.getItem('brickrun_missions_date');
+  if(stored===td){
+    try{
+      todaysMissions=JSON.parse(localStorage.getItem('brickrun_missions_today')||'[]');
+      missionProgress=JSON.parse(localStorage.getItem('brickrun_missions_prog')||'{}');
+      missionsClaimed=JSON.parse(localStorage.getItem('brickrun_missions_claim')||'{}');
+      return;
+    }catch(e){}
+  }
+  // Generate today's missions: pick 3 unique by seeded index
+  const rng=makeRng(dailySeedNum()^0xBADBEEF);
+  const picked=[];const pool=MISSION_POOL.slice();
+  for(let i=0;i<3&&pool.length;i++){
+    const idx=Math.floor(rng()*pool.length);
+    picked.push(pool.splice(idx,1)[0]);
+  }
+  todaysMissions=picked;
+  missionProgress={};missionsClaimed={};
+  localStorage.setItem('brickrun_missions_date',td);
+  localStorage.setItem('brickrun_missions_today',JSON.stringify(todaysMissions));
+  localStorage.setItem('brickrun_missions_prog','{}');
+  localStorage.setItem('brickrun_missions_claim','{}');
+}
+function saveMissionProgress(){
+  localStorage.setItem('brickrun_missions_prog',JSON.stringify(missionProgress));
+  localStorage.setItem('brickrun_missions_claim',JSON.stringify(missionsClaimed));
+}
+function bumpMission(type,amount){
+  if(!todaysMissions)return;
+  amount=amount||1;
+  todaysMissions.forEach(m=>{
+    if(m.type===type){
+      missionProgress[m.id]=(missionProgress[m.id]||0)+amount;
+    }
+  });
+  saveMissionProgress();
+}
+function setMissionMax(type,value){
+  // For type 'combo' — track best combo seen, not cumulative
+  if(!todaysMissions)return;
+  todaysMissions.forEach(m=>{
+    if(m.type===type){
+      if(!missionProgress[m.id]||value>missionProgress[m.id])missionProgress[m.id]=value;
+    }
+  });
+  saveMissionProgress();
+}
+function isMissionComplete(m){return (missionProgress[m.id]||0)>=m.goal}
+function claimMission(id){
+  if(missionsClaimed[id])return false;
+  const m=todaysMissions.find(x=>x.id===id);
+  if(!m||!isMissionComplete(m))return false;
+  missionsClaimed[id]=true;
+  totalCoins+=m.reward;coins+=0; // don't add to in-run coin counter
+  localStorage.setItem('brickrun_coins',''+totalCoins);
+  saveMissionProgress();
+  playSound('newbest');
+  return true;
+}
 // Daily mode + seeded RNG
 let dailyMode=false;
 let _dailyRng=null;
@@ -485,6 +657,15 @@ const shoeL=BABYLON.MeshBuilder.CreateBox('shoeL',{width:0.38,height:0.18,depth:
 const shoeR=shoeL.clone('shoeR');shoeR.position.x=0.35;shoeR.parent=mascotRoot;
 mascotRoot.scaling=new BABYLON.Vector3(1.3,1.3,1.3);
 
+// Apply active character's color scheme to the mascot materials
+function applyActiveCharacter(){
+  const ch=getActiveChar();
+  mascotMat.albedoColor=new BABYLON.Color3(ch.body[0],ch.body[1],ch.body[2]);
+  bellyMat.albedoColor=new BABYLON.Color3(ch.belly[0],ch.belly[1],ch.belly[2]);
+  crownMat.albedoColor=new BABYLON.Color3(ch.accent[0],ch.accent[1],ch.accent[2]);
+}
+applyActiveCharacter();
+
 // DOM refs
 const $wall=document.getElementById('wall-counter'),$coin=document.getElementById('coin-counter'),$score=document.getElementById('score-display');
 const $tapHint=document.getElementById('tap-hint'),$combo=document.getElementById('combo-text'),$scorePop=document.getElementById('score-popup');
@@ -514,8 +695,212 @@ function refreshStartScreen(){
     if(dailyBest>0)s+=(s?'<br>':'')+"📅 Today's best: Wall "+dailyBest;
     meta.innerHTML=s;
   }
+  refreshMissionsUI();
+  refreshCharsUI();
 }
-refreshStartScreen();
+
+// ============ MISSIONS UI ============
+// (Boot init for missions + start screen happens after these UI fns are declared,
+//  see end of HUD setup block.)
+function refreshMissionsUI(){
+  const c=document.getElementById('missions-panel');if(!c)return;
+  if(!todaysMissions||!todaysMissions.length){c.innerHTML='';return}
+  let html='<div class="missions-title">📋 Today\'s Missions</div>';
+  todaysMissions.forEach(m=>{
+    const prog=Math.min(missionProgress[m.id]||0,m.goal);
+    const done=isMissionComplete(m);
+    const claimed=missionsClaimed[m.id];
+    const pct=Math.round(prog/m.goal*100);
+    html+='<div class="mission-row">';
+    html+= '<div class="mission-text">'+m.text+'</div>';
+    html+= '<div class="mission-bar"><div class="mission-fill" style="width:'+pct+'%"></div></div>';
+    html+= '<div class="mission-prog">'+prog+'/'+m.goal+' • +'+m.reward+'💰</div>';
+    if(claimed){
+      html+='<div class="mission-claimed">✓ CLAIMED</div>';
+    } else if(done){
+      html+='<button class="mission-claim" data-mid="'+m.id+'">CLAIM</button>';
+    }
+    html+='</div>';
+  });
+  // Streak preview (next reward)
+  const sd=Math.min(dailyStreak,STREAK_REWARDS.length-1);
+  const nextReward=STREAK_REWARDS[sd];
+  html+='<div class="streak-preview">🔥 Day '+(dailyStreak+1)+' streak reward: <b>+'+nextReward+'💰</b> — play DAILY today</div>';
+  c.innerHTML=html;
+  // Wire claim buttons
+  c.querySelectorAll('.mission-claim').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      ensureAudio();
+      const id=btn.getAttribute('data-mid');
+      if(claimMission(id)){
+        refreshMissionsUI();refreshStartScreen();
+      }
+    });
+  });
+}
+
+// ============ CHARACTERS UI ============
+function refreshCharsUI(){
+  const c=document.getElementById('chars-panel');if(!c)return;
+  let html='<div class="chars-title">🎭 CHARACTERS</div><div class="chars-grid">';
+  CHARACTERS.forEach(ch=>{
+    const owned=isCharOwned(ch.id);
+    const active=ch.id===activeCharId;
+    const cls='char-cell '+(owned?'owned':'locked')+(active?' active':'');
+    html+='<div class="'+cls+'" data-cid="'+ch.id+'">';
+    html+= '<div class="char-emoji">'+ch.emoji+'</div>';
+    html+= '<div class="char-name">'+ch.name+'</div>';
+    if(!owned)html+='<div class="char-cost">'+ch.cost+'💰</div><div class="char-lock">🔒</div>';
+    else if(active)html+='<div class="char-lock">★</div>';
+    html+='</div>';
+  });
+  html+='</div>';
+  c.innerHTML=html;
+  c.querySelectorAll('.char-cell').forEach(cell=>{
+    cell.addEventListener('click',(e)=>{
+      e.stopPropagation();ensureAudio();
+      const id=cell.getAttribute('data-cid');
+      if(isCharOwned(id)){
+        if(selectChar(id)){playSound('cycle');refreshCharsUI()}
+      } else {
+        if(tryUnlockChar(id)){
+          selectChar(id);
+          refreshCharsUI();refreshStartScreen();
+        } else {
+          // Not enough coins — flash the cell
+          cell.style.transition='transform .1s,background .15s';
+          const orig=cell.style.background;
+          cell.style.background='rgba(255,80,60,0.4)';
+          setTimeout(()=>cell.style.background=orig,250);
+        }
+      }
+    });
+  });
+}
+
+// ============ REVIVE + GAME OVER ============
+let reviveAvailable=true; // reset per run
+function maybeOfferReviveOrFinalize(){
+  const wasNewBest=score>highScore;
+  const wasNewBestWalls=wallsCleared>lifetimeBestWalls;
+  const wallsFromBest=Math.max(0,lifetimeBestWalls-wallsCleared);
+  if(wasNewBest){highScore=score;localStorage.setItem('brickrun_high',''+highScore)}
+  if(wasNewBestWalls){lifetimeBestWalls=wallsCleared;localStorage.setItem('brickrun_lt_best_walls',''+lifetimeBestWalls)}
+  // Offer revive only if: not already used, run was meaningful (≥3 walls), and player can afford
+  if(reviveAvailable&&wallsCleared>=3&&totalCoins>=50){
+    showReviveModal(()=>finalizeGameOver(wasNewBest,wasNewBestWalls,wallsFromBest));
+  }else{
+    finalizeGameOver(wasNewBest,wasNewBestWalls,wallsFromBest);
+  }
+}
+
+let _reviveTimer=null;
+function showReviveModal(onDecline){
+  const modal=document.getElementById('revive-modal');if(!modal){onDecline();return}
+  document.getElementById('revive-walls').textContent=wallsCleared;
+  document.getElementById('revive-cost').textContent=totalCoins>=50?'50 💰':'NOT ENOUGH';
+  modal.classList.remove('hidden');
+  // 5-second countdown to decline
+  let secs=5;
+  document.getElementById('revive-timer').textContent=secs;
+  if(_reviveTimer)clearInterval(_reviveTimer);
+  _reviveTimer=setInterval(()=>{
+    secs--;
+    document.getElementById('revive-timer').textContent=secs;
+    if(secs<=0){clearInterval(_reviveTimer);_reviveTimer=null;modal.classList.add('hidden');onDecline()}
+  },1000);
+  // Wire buttons (one-shot)
+  const yes=document.getElementById('revive-yes');
+  const no=document.getElementById('revive-no');
+  const yesH=(e)=>{e.stopPropagation();ensureAudio();
+    if(totalCoins<50)return;
+    if(_reviveTimer)clearInterval(_reviveTimer);_reviveTimer=null;
+    totalCoins-=50;localStorage.setItem('brickrun_coins',''+totalCoins);
+    reviveAvailable=false;
+    modal.classList.add('hidden');
+    cleanup();
+    doRevive();
+  };
+  const noH=(e)=>{e.stopPropagation();ensureAudio();
+    if(_reviveTimer)clearInterval(_reviveTimer);_reviveTimer=null;
+    modal.classList.add('hidden');
+    cleanup();
+    onDecline();
+  };
+  function cleanup(){yes.removeEventListener('click',yesH);no.removeEventListener('click',noH)}
+  yes.addEventListener('click',yesH);
+  no.addEventListener('click',noH);
+}
+
+function doRevive(){
+  // Restore: clear crash anim, restore mascot, advance past wall, regenerate next wall
+  crashAnim={active:false,t:0};
+  state='playing';
+  mascotRoot.scaling=new BABYLON.Vector3(1.3,1.3,1.3);
+  mascotRoot.rotation=BABYLON.Vector3.Zero();
+  setExpression('normal');
+  // Push runner past the (failed) wall and spawn a fresh one
+  runnerZ=wallZ+5;
+  combo=Math.max(1,Math.floor(combo/2)); // halve combo on revive
+  generateWall();
+  // Brief celebration
+  showMilestoneBanner('REVIVED!','#66E0FF');
+  playSound('newbest');
+  shakeMag=0.6;
+}
+
+function finalizeGameOver(wasNewBest,wasNewBestWalls,wallsFromBest){
+  state='gameover';
+  // Daily challenge stats + streak rewards
+  let streakReward=0,streakDay=0;
+  if(dailyMode){
+    const td=todayStr();
+    if(wallsCleared>dailyBest){dailyBest=wallsCleared;localStorage.setItem('brickrun_daily_best',''+dailyBest)}
+    if(dailyLast!==td){
+      dailyStreak=(dailyLast===prevDayStr())?dailyStreak+1:1;
+      dailyLast=td;
+      localStorage.setItem('brickrun_daily_last',td);
+      localStorage.setItem('brickrun_daily_streak',''+dailyStreak);
+      // Award streak coins
+      streakDay=Math.min(dailyStreak,STREAK_REWARDS.length);
+      streakReward=STREAK_REWARDS[streakDay-1];
+      totalCoins+=streakReward;localStorage.setItem('brickrun_coins',''+totalCoins);
+    }
+  }
+  document.getElementById('go-score').textContent='SCORE: '+score;
+  document.getElementById('go-walls').textContent='WALLS: '+wallsCleared+(dailyMode?' 🔥 DAILY':'');
+  document.getElementById('go-best').textContent='BEST: '+highScore;
+  document.getElementById('go-newbest').style.display=wasNewBest?'block':'none';
+  // "So close" psychological message
+  const soClose=document.getElementById('go-soclose');
+  if(soClose){
+    if(wasNewBestWalls&&lifetimeBestWalls>0&&!wasNewBest){
+      soClose.textContent='🏆 NEW WALL RECORD: '+lifetimeBestWalls+'!';
+      soClose.style.display='block';
+    } else if(wallsFromBest>0&&wallsFromBest<=3){
+      soClose.textContent='💔 SO CLOSE — only '+wallsFromBest+' wall'+(wallsFromBest===1?'':'s')+' from your best!';
+      soClose.style.display='block';
+    } else if(wallsFromBest>0&&wallsFromBest<=8){
+      soClose.textContent='Only '+wallsFromBest+' walls from your best of '+lifetimeBestWalls;
+      soClose.style.display='block';
+    } else {
+      soClose.style.display='none';
+    }
+  }
+  // Streak reward toast
+  const streakEl=document.getElementById('go-streak');
+  if(streakEl){
+    if(streakReward>0){
+      streakEl.textContent='🔥 Day '+streakDay+' streak: +'+streakReward+' 💰!';
+      streakEl.style.display='block';
+    } else {
+      streakEl.style.display='none';
+    }
+  }
+  $goScr.classList.remove('hidden');
+  if(wasNewBest)playSound('newbest');
+}
 
 // Shape bar
 function buildShapeBar(){$shapeBar.innerHTML='';SHAPES.forEach((sh,i)=>{
@@ -540,6 +925,9 @@ buildColorBar();
 function updateColorBar(){
   BCOLS_HEX.forEach((_,i)=>{const e=document.getElementById('cd-'+i);if(e)e.className='color-dot'+(i===currentColorIdx?' active':'')});
 }
+// Boot: load today's missions and refresh the start screen now that all UI fns are declared
+loadDailyMissions();
+refreshStartScreen();
 // Build speed lines (8 streaks at screen edges, animated by CSS)
 (function buildSpeedLines(){
   const c=document.getElementById('speed-lines');if(!c)return;
@@ -800,6 +1188,8 @@ function initGame(){
   setExpression('normal');
   // Show TAP hint again on fresh game
   document.getElementById('tap-hint-center').classList.remove('hidden');
+  // Allow one revive per run
+  reviveAvailable=true;
   // Init seeded RNG if daily mode
   if(dailyMode){_dailyRng=makeRng(dailySeedNum())}else{_dailyRng=null}
   generateWall();updateHUD();
@@ -1120,7 +1510,7 @@ function update(dt){
 
   // Coins
   coinMeshes.forEach(c=>{if(c._collected)return;c.rotation.y+=dt*3;c.position.y=1.5+Math.sin(gameTime*2+c.position.x)*0.3;
-    if(Math.abs(c.position.z-runnerZ)<1.5&&Math.abs(c.position.x)<2){c._collected=true;c.setEnabled(false);coins++;totalCoins++;localStorage.setItem('brickrun_coins',''+totalCoins);playSound('coin')}});
+    if(Math.abs(c.position.z-runnerZ)<1.5&&Math.abs(c.position.x)<2){c._collected=true;c.setEnabled(false);coins++;totalCoins++;localStorage.setItem('brickrun_coins',''+totalCoins);playSound('coin');bumpMission('coins',1)}});
 
   // Collision — Level 1 (walls 1-10): shape only. Level 2+ (walls 11+): shape + color
   if(!matchAnim.active&&!crashAnim.active){
@@ -1222,6 +1612,14 @@ function update(dt){
         lifetimeWalls++;localStorage.setItem('brickrun_lt_walls',''+lifetimeWalls);
         lifetimeFits++;localStorage.setItem('brickrun_lt_fits',''+lifetimeFits);
         if(combo>lifetimeBestCombo){lifetimeBestCombo=combo;localStorage.setItem('brickrun_lt_best_combo',''+lifetimeBestCombo)}
+        // Mission tracking
+        setMissionMax('walls_run',wallsCleared);
+        if(dailyMode)setMissionMax('walls_daily',wallsCleared);
+        bumpMission('fits_total',1);
+        setMissionMax('combo',combo);
+        if(tier==='PERFECT!'||tier==='CLUTCH!'||tier==='INSANE!!')bumpMission('perfect',1);
+        if(tier==='CLUTCH!')bumpMission('clutch',1);
+        if(tier==='INSANE!!')bumpMission('insane',1);
         if(wallsCleared===10){
           showCombo('LEVEL 2: MATCH COLOR!');
           document.getElementById('tap-hint-left').style.opacity='0.7';
@@ -1320,27 +1718,8 @@ function update(dt){
     // Game over after animation completes
     if(t>=1.2){
       mascotRoot.rotation=BABYLON.Vector3.Zero();
-      state='gameover';
-      const wasNewBest=score>highScore;
-      if(wasNewBest){highScore=score;localStorage.setItem('brickrun_high',''+highScore)}
-      // Daily challenge stats
-      if(dailyMode){
-        const td=todayStr();
-        if(wallsCleared>dailyBest){dailyBest=wallsCleared;localStorage.setItem('brickrun_daily_best',''+dailyBest)}
-        if(dailyLast!==td){
-          // First daily play of the day → increment streak
-          dailyStreak=(dailyLast===prevDayStr())?dailyStreak+1:1;
-          dailyLast=td;
-          localStorage.setItem('brickrun_daily_last',td);
-          localStorage.setItem('brickrun_daily_streak',''+dailyStreak);
-        }
-      }
-      document.getElementById('go-score').textContent='SCORE: '+score;
-      document.getElementById('go-walls').textContent='WALLS: '+wallsCleared+(dailyMode?' 🔥 DAILY':'');
-      document.getElementById('go-best').textContent='BEST: '+highScore;
-      document.getElementById('go-newbest').style.display=wasNewBest?'block':'none';
-      $goScr.classList.remove('hidden');
-      if(wasNewBest)playSound('newbest');
+      // Offer revive first (deferred game-over). If unavailable/declined, finalize.
+      maybeOfferReviveOrFinalize();
     }
   }
 

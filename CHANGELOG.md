@@ -1,5 +1,57 @@
 # Changelog
 
+## v0.3.0 — Hooked Pack (2026-04-27)
+
+The retention layer. Players now have **reasons to come back tomorrow** beyond just chasing a score:
+
+### Daily missions
+- 3 deterministic missions per day, seeded by the date so every player today gets the same set
+- 11-mission pool covering walls, combos, coins, perfect/clutch/insane matches, daily-mode wins
+- Progress tracked in localStorage; persists across runs within the same day
+- One-tap CLAIM button awards coins on completion
+- Pulsing CLAIM animation draws the eye
+
+### 7-day streak rewards
+- Daily-mode runs award escalating coin payouts: 50 / 100 / 150 / 250 / 400 / 600 / 1000 across days 1–7
+- Streak resets if you skip a day (loss aversion)
+- "Day N streak reward" toast appears on game over
+
+### Character roster
+- 8 unlockable mascots: King (free), Pirate (200💰), Astronaut (500💰), Ninja (800💰), Vampire (1.2k💰), Wizard (1.8k💰), Robot (2.5k💰), Champion (5k💰)
+- Each character has unique body, belly, and accent (crown) colors applied to the live mascot meshes
+- Coins finally have a destination — driving the "grind for the next character" loop
+- Tap-to-unlock when affordable; flash-rejection animation when not
+
+### Revive system
+- After crashing with ≥3 walls cleared and ≥50 coins, a revive modal appears
+- 50-coin cost or auto-decline after 5 seconds
+- One revive per run — restores the runner past the failed wall, halves combo
+- Prevents the soul-crushing "lost a 30-wall run" experience
+
+### "So close" psychological messaging
+- Game over now tracks `lifetimeBestWalls` separately from score-best
+- "💔 SO CLOSE — only 2 walls from your best!" message when wallsFromBest ≤ 3
+- "Only N walls from your best of M" when wallsFromBest ≤ 8
+- "🏆 NEW WALL RECORD" celebration on personal best
+
+### UX polish
+- Mission progress bars on start screen (cyan→gold gradient fill)
+- Character grid with locked/owned/active states (lock icon, star marker, gold border)
+- Coin counter on start screen now uses 💰 emoji consistently
+- All new modals respect mute setting + audio context resume
+
+### Total localStorage footprint
+| Key | Purpose |
+|---|---|
+| `brickrun_high` / `brickrun_coins` | Existing best score, coins |
+| `brickrun_lt_walls` / `brickrun_lt_fits` / `brickrun_lt_best_combo` / `brickrun_lt_best_walls` | Lifetime stats |
+| `brickrun_daily_streak` / `brickrun_daily_last` / `brickrun_daily_best` | Daily streak tracking |
+| `brickrun_missions_date` / `brickrun_missions_today` / `brickrun_missions_prog` / `brickrun_missions_claim` | Mission state |
+| `brickrun_chars_owned` / `brickrun_char_active` | Character ownership + selection |
+| `brickrun_muted` | Mute pref |
+
+---
+
 ## v0.2.0 — Viral Pack (2026-04-27)
 
 ### Audio
