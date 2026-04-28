@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.3.2 — Player Feedback (2026-04-28)
+
+Direct player feedback after the QA pass surfaced 3 real issues:
+
+### Bug #13 (CRITICAL) — Wall transition flash
+After clearing wall 2, the previous wall briefly flashed back into view before wall 3 was built. Cause: `wallRoot.setEnabled(true)` was called BEFORE `generateWall()` — the disabled-but-still-populated wallGroup re-rendered the just-exploded wall for a frame. Fixed by building the new wall first, then enabling.
+
+### Gender variety — Boy/Girl mascot starters
+Both KING (👑) and QUEEN (👸) are now free starters. Plus two more girl characters added to the unlock pool:
+- **FAIRY** (300 coins) — pink/yellow with light cyan accent
+- **MERMAID** (1000 coins) — teal/blue with magenta hair
+
+Girl characters get extra visual elements: long flowing hair on both sides + a pink bow on top. Hair color is per-character (Queen brown, Fairy yellow, Mermaid magenta). Boy characters render without hair/bow.
+
+### Brick-fit satisfaction overhaul
+Player report: "the brick and wall fit should be satisfying — that's missing." The dock moment now has:
+- **Cartoon overshoot animation** — brick scales 1.0 → 1.22 (impact) → 0.94 (settle) → 1.0 (final), feels like Looney Tunes squash-and-stretch
+- **Ring burst particles** — 14 yellow sparks radiate outward from the gap on dock + a center pop cube
+- **Brief slow-motion** — 0.08s dt scaling at the moment of fit so the player SEES it
+- **Layered dock sound** — sharp 1320Hz click + deep 120Hz bass thud + 440Hz body resonance + brief noise crunch
+- **Stronger thud shake** — shakeMag 0.25 → 0.6 plus a camera FOV jolt
+- **Longer dock pause** — phase 2 extended from 0.20s to 0.33s in animation time
+- **Slower match anim** — `dt*2.2 → dt*1.8` so the entire fit-explode sequence lands properly
+- **White impact flash** stacked under the gap-color flash for an extra "POP"
+- **Triple haptic pattern** [60,20,30] instead of single 40ms
+
+---
+
 ## v0.3.1 — QA Pass (2026-04-28)
 
 Three iterations of pro-QA testing surfaced ~12 issues; all critical and important fixed.

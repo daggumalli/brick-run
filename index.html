@@ -474,20 +474,26 @@ const STREAK_REWARDS=[50,100,150,250,400,600,1000]; // 7-day cycle
 // Each: id, name, body color, belly color, accent (crown/cap) color, cost (coins)
 // First one (king) is free + default
 const CHARACTERS=[
-  {id:'king',     name:'KING',      body:[0.20,0.47,0.80], belly:[0.45,0.65,0.90], accent:[0.95,0.78,0.10], emoji:'👑', cost:0},
-  {id:'pirate',   name:'PIRATE',    body:[0.55,0.10,0.10], belly:[0.85,0.40,0.20], accent:[0.10,0.10,0.10], emoji:'🏴‍☠️', cost:200},
-  {id:'astronaut',name:'ASTRONAUT', body:[0.92,0.92,0.95], belly:[0.78,0.80,0.85], accent:[0.55,0.78,0.95], emoji:'👨‍🚀', cost:500},
-  {id:'ninja',    name:'NINJA',     body:[0.10,0.10,0.13], belly:[0.30,0.30,0.35], accent:[0.85,0.10,0.15], emoji:'🥷', cost:800},
-  {id:'vampire',  name:'VAMPIRE',   body:[0.30,0.05,0.30], belly:[0.55,0.20,0.40], accent:[0.85,0.10,0.10], emoji:'🧛', cost:1200},
-  {id:'wizard',   name:'WIZARD',    body:[0.40,0.20,0.65], belly:[0.65,0.50,0.85], accent:[0.95,0.78,0.10], emoji:'🧙', cost:1800},
-  {id:'robot',    name:'ROBOT',     body:[0.50,0.55,0.62], belly:[0.75,0.78,0.82], accent:[0.20,0.85,0.95], emoji:'🤖', cost:2500},
-  {id:'champion', name:'CHAMPION',  body:[0.95,0.75,0.10], belly:[1.00,0.92,0.55], accent:[0.85,0.20,0.20], emoji:'🏆', cost:5000},
+  // Both starter mascots are free — boy / girl gender choice
+  {id:'king',     name:'KING',      body:[0.20,0.47,0.80], belly:[0.45,0.65,0.90], accent:[0.95,0.78,0.10], emoji:'🤴', cost:0,    gender:'boy'},
+  {id:'queen',    name:'QUEEN',     body:[0.85,0.40,0.65], belly:[0.95,0.70,0.85], accent:[0.95,0.78,0.10], emoji:'👸', cost:0,    gender:'girl', hairColor:[0.55,0.30,0.20]},
+  {id:'pirate',   name:'PIRATE',    body:[0.55,0.10,0.10], belly:[0.85,0.40,0.20], accent:[0.10,0.10,0.10], emoji:'🏴‍☠️', cost:200, gender:'boy'},
+  {id:'fairy',    name:'FAIRY',     body:[0.95,0.65,0.85], belly:[1.00,0.85,0.95], accent:[0.55,0.85,0.95], emoji:'🧚', cost:300, gender:'girl', hairColor:[0.95,0.85,0.55]},
+  {id:'astronaut',name:'ASTRONAUT', body:[0.92,0.92,0.95], belly:[0.78,0.80,0.85], accent:[0.55,0.78,0.95], emoji:'🧑‍🚀', cost:500, gender:'boy'},
+  {id:'ninja',    name:'NINJA',     body:[0.10,0.10,0.13], belly:[0.30,0.30,0.35], accent:[0.85,0.10,0.15], emoji:'🥷', cost:800, gender:'boy'},
+  {id:'mermaid',  name:'MERMAID',   body:[0.20,0.65,0.85], belly:[0.45,0.85,0.95], accent:[0.95,0.45,0.65], emoji:'🧜', cost:1000,gender:'girl', hairColor:[0.85,0.20,0.45]},
+  {id:'vampire',  name:'VAMPIRE',   body:[0.30,0.05,0.30], belly:[0.55,0.20,0.40], accent:[0.85,0.10,0.10], emoji:'🧛', cost:1200,gender:'boy'},
+  {id:'wizard',   name:'WIZARD',    body:[0.40,0.20,0.65], belly:[0.65,0.50,0.85], accent:[0.95,0.78,0.10], emoji:'🧙', cost:1800,gender:'boy'},
+  {id:'robot',    name:'ROBOT',     body:[0.50,0.55,0.62], belly:[0.75,0.78,0.82], accent:[0.20,0.85,0.95], emoji:'🤖', cost:2500,gender:'neutral'},
+  {id:'champion', name:'CHAMPION',  body:[0.95,0.75,0.10], belly:[1.00,0.92,0.55], accent:[0.85,0.20,0.20], emoji:'🏆', cost:5000,gender:'neutral'},
 ];
 let ownedCharacters=null;
 let activeCharId=localStorage.getItem('brickrun_char_active')||'king';
 function loadOwnedCharacters(){
-  try{ownedCharacters=JSON.parse(localStorage.getItem('brickrun_chars_owned')||'["king"]')}catch(e){ownedCharacters=['king']}
+  try{ownedCharacters=JSON.parse(localStorage.getItem('brickrun_chars_owned')||'["king","queen"]')}catch(e){ownedCharacters=['king','queen']}
+  // Always make sure both starters are unlocked
   if(!ownedCharacters.includes('king'))ownedCharacters.unshift('king');
+  if(!ownedCharacters.includes('queen'))ownedCharacters.push('queen');
 }
 function saveOwnedCharacters(){
   localStorage.setItem('brickrun_chars_owned',JSON.stringify(ownedCharacters));
@@ -649,11 +655,37 @@ function setExpression(s){
     mouth.scaling.set(0.8,1.8,1);
   }
 }
-// Crown
+// Crown (head accessory — colored per character; for girl characters this is shaped like a tiara)
 const crownMat=makeMat('crown',new BABYLON.Color3(0.95,0.78,0.1),0.3);crownMat.metallic=0.3;
 const crBase=BABYLON.MeshBuilder.CreateCylinder('crbase',{height:0.2,diameterTop:0.8,diameterBottom:1,tessellation:8},scene);
 crBase.material=crownMat;crBase.position.y=2.95;crBase.parent=mascotRoot;
-for(let i=0;i<5;i++){const a=i/5*Math.PI*2;const cp=BABYLON.MeshBuilder.CreateBox('cp'+i,{width:0.15,height:0.25,depth:0.15},scene);cp.material=crownMat;cp.position=new BABYLON.Vector3(Math.sin(a)*0.35,3.15,Math.cos(a)*0.35);cp.parent=mascotRoot;}
+const crownPoints=[];
+for(let i=0;i<5;i++){
+  const a=i/5*Math.PI*2;
+  const cp=BABYLON.MeshBuilder.CreateBox('cp'+i,{width:0.15,height:0.25,depth:0.15},scene);
+  cp.material=crownMat;cp.position=new BABYLON.Vector3(Math.sin(a)*0.35,3.15,Math.cos(a)*0.35);
+  cp.parent=mascotRoot;crownPoints.push(cp);
+}
+// Hair (visible only for girl characters) — long flowing locks behind the head
+const hairMat=makeMat('hair',new BABYLON.Color3(0.55,0.30,0.20),0.65);
+const hair1=BABYLON.MeshBuilder.CreateSphere('hair1',{diameter:0.55,segments:6},scene);
+hair1.material=hairMat;hair1.scaling=new BABYLON.Vector3(0.9,1.4,0.55);
+hair1.position=new BABYLON.Vector3(-0.42,2.55,-0.05);hair1.parent=mascotRoot;
+const hair2=BABYLON.MeshBuilder.CreateSphere('hair2',{diameter:0.55,segments:6},scene);
+hair2.material=hairMat;hair2.scaling=new BABYLON.Vector3(0.9,1.4,0.55);
+hair2.position=new BABYLON.Vector3(0.42,2.55,-0.05);hair2.parent=mascotRoot;
+// Bow on top (cute accessory for girl characters)
+const bowMat=makeMat('bow',new BABYLON.Color3(0.95,0.45,0.65),0.4);
+const bowL=BABYLON.MeshBuilder.CreateSphere('bowL',{diameter:0.28,segments:6},scene);
+bowL.material=bowMat;bowL.scaling=new BABYLON.Vector3(1,1,0.6);
+bowL.position=new BABYLON.Vector3(-0.18,3.32,0);bowL.parent=mascotRoot;
+const bowR=BABYLON.MeshBuilder.CreateSphere('bowR',{diameter:0.28,segments:6},scene);
+bowR.material=bowMat;bowR.scaling=new BABYLON.Vector3(1,1,0.6);
+bowR.position=new BABYLON.Vector3(0.18,3.32,0);bowR.parent=mascotRoot;
+const bowKnot=BABYLON.MeshBuilder.CreateSphere('bowK',{diameter:0.14,segments:6},scene);
+bowKnot.material=bowMat;bowKnot.position=new BABYLON.Vector3(0,3.32,0);bowKnot.parent=mascotRoot;
+hair1.isVisible=false;hair2.isVisible=false;
+bowL.isVisible=false;bowR.isVisible=false;bowKnot.isVisible=false;
 // Legs
 const legMat=mascotMat;
 const legL=BABYLON.MeshBuilder.CreateCylinder('legL',{height:0.6,diameterTop:0.4,diameterBottom:0.5,tessellation:8},scene);legL.material=legMat;legL.position=new BABYLON.Vector3(-0.35,0.3,0);legL.parent=mascotRoot;shadowGen.addShadowCaster(legL);
@@ -664,12 +696,19 @@ const shoeL=BABYLON.MeshBuilder.CreateBox('shoeL',{width:0.38,height:0.18,depth:
 const shoeR=shoeL.clone('shoeR');shoeR.position.x=0.35;shoeR.parent=mascotRoot;
 mascotRoot.scaling=new BABYLON.Vector3(1.3,1.3,1.3);
 
-// Apply active character's color scheme to the mascot materials
+// Apply active character's color scheme + gender-specific accessories
 function applyActiveCharacter(){
   const ch=getActiveChar();
   mascotMat.albedoColor=new BABYLON.Color3(ch.body[0],ch.body[1],ch.body[2]);
   bellyMat.albedoColor=new BABYLON.Color3(ch.belly[0],ch.belly[1],ch.belly[2]);
   crownMat.albedoColor=new BABYLON.Color3(ch.accent[0],ch.accent[1],ch.accent[2]);
+  // Girl characters: show hair + bow, with character-specific hair color
+  const isGirl=ch.gender==='girl';
+  hair1.isVisible=isGirl;hair2.isVisible=isGirl;
+  bowL.isVisible=isGirl;bowR.isVisible=isGirl;bowKnot.isVisible=isGirl;
+  if(isGirl&&ch.hairColor){
+    hairMat.albedoColor=new BABYLON.Color3(ch.hairColor[0],ch.hairColor[1],ch.hairColor[2]);
+  }
 }
 applyActiveCharacter();
 
@@ -1029,10 +1068,12 @@ function playSound(n){
     case 'tap': tone(600,0.05,'triangle',0.18); break;
     case 'cycle': tone(800,0.08,'triangle',0.18,1100); break;
     case 'dock':
-      // Signature sound — satisfying click + body
-      tone(880,0.08,'sine',0.3,440);
-      tone(220,0.18,'sine',0.22);
-      setTimeout(()=>tone(660,0.06,'triangle',0.12),40);
+      // Signature sound — sharp click + deep bass thud + body resonance
+      tone(1320,0.06,'sine',0.32,660);     // bright high click
+      tone(120,0.22,'sine',0.32,60);        // deep bass thud
+      tone(440,0.14,'triangle',0.20);       // mid body
+      setTimeout(()=>tone(880,0.06,'triangle',0.16),35);
+      noise(0.06,0.10);                     // tiny crunch
       break;
     case 'collapse':
     case 'explode':
@@ -1417,6 +1458,35 @@ function triggerCrash(){
 }
 
 // ============ EPIC PARTICLE EXPLOSION ============
+// ============ DOCK BURST — small ring of sparkles at the moment of fit ============
+function spawnDockBurst(localX,localY,worldZ){
+  // worldX = wallRoot.position.x + localX, but wallRoot.position is at (0,0,wallZ)
+  const wx=localX,wy=localY,wz=worldZ;
+  // Outward ring of 14 small bright sparks
+  const N=14;
+  for(let i=0;i<N;i++){
+    const a=(i/N)*Math.PI*2;
+    const sp=BABYLON.MeshBuilder.CreateBox('db',{size:0.18},scene);
+    const m=makeSimpleMat('dbm',1,0.95,0.55);m.emissiveColor=new BABYLON.Color3(1,0.9,0.4);
+    sp.material=m;
+    sp.position=new BABYLON.Vector3(wx,wy,wz);
+    const speed=fxRand(7,11);
+    sp._vel=new BABYLON.Vector3(Math.cos(a)*speed,Math.sin(a)*speed*0.6+1,fxRand(-2,2));
+    sp._rotVel=new BABYLON.Vector3(fxRand(-12,12),fxRand(-12,12),fxRand(-12,12));
+    sp._life=fxRand(0.35,0.55);sp._startLife=sp._life;
+    particleMeshes.push(sp);
+  }
+  // Center pop — bright yellow expanding cube
+  const pop=BABYLON.MeshBuilder.CreateBox('dpop',{size:0.4},scene);
+  const popM=makeSimpleMat('dpopm',1,1,0.7);popM.emissiveColor=new BABYLON.Color3(1,0.95,0.5);
+  pop.material=popM;
+  pop.position=new BABYLON.Vector3(wx,wy,wz);
+  pop._vel=new BABYLON.Vector3(0,2,0);
+  pop._rotVel=new BABYLON.Vector3(2,2,2);
+  pop._life=0.35;pop._startLife=pop._life;pop._isDust=true;
+  particleMeshes.push(pop);
+}
+
 function spawnExplosion(){
   const wallPos=wallRoot.position.clone();
 
@@ -1558,7 +1628,7 @@ function update(dt){
 
   // ====== FIT → HOLD → EXPLODE ======
   if(matchAnim.active){
-    matchAnim.t+=dt*2.2;
+    matchAnim.t+=dt*1.8;  // slightly slower so the DOCK moment lands
 
     // The gap's world position: wallRoot has _gapCenterX/Y in local coords
     // The floating brick's children are offset from floatRoot center
@@ -1568,44 +1638,71 @@ function update(dt){
     const gapWorldY=(wallRoot._gapCenterY||3);
     const gapWorldZ=wallZ;
 
-    // Phase 1 (0→0.25): Brick flies straight at the gap hole
-    if(matchAnim.t<0.25){
-      const ft=clamp(matchAnim.t/0.25,0,1);
-      const ease=ft*ft*(3-2*ft); // smoothstep
+    // Phase 1 (0→0.22): Brick accelerates toward the gap hole — fast attack
+    if(matchAnim.t<0.22){
+      const ft=clamp(matchAnim.t/0.22,0,1);
+      const ease=ft*ft; // ease-in (accelerate) — feels like a fast launch
       floatRoot.position.x=lerp(0,gapWorldX,ease);
       floatRoot.position.z=lerp(runnerZ+4.5,gapWorldZ,ease);
       floatRoot.position.y=lerp(2.8,gapWorldY,ease);
       floatRoot.setEnabled(true);
       floatRoot.rotation.y=0;
+      // Slight spin during flight for energy
+      floatRoot.rotation.z=ease*Math.PI*0.18;
       floatRoot.scaling=BABYLON.Vector3.One();
-      camera.fov=lerp(1.05,0.9,ft);
+      camera.fov=lerp(1.05,0.88,ft);
     }
 
-    // Phase 2 (0.25→0.45): DOCKED — brick sits inside the hole. Player sees the fit.
-    else if(matchAnim.t<0.45){
+    // Phase 2 (0.22→0.55): DOCKED — brick locks into the hole with overshoot+settle.
+    // Player MUST see the fit — this is the satisfaction moment.
+    else if(matchAnim.t<0.55){
+      const localT=clamp((matchAnim.t-0.22)/0.33,0,1);
+      // Overshoot scale: 1.18 at 0.0 → 0.92 at 0.4 → 1.0 at 1.0 (cartoon "snap" feel)
+      let s=1;
+      if(localT<0.18){
+        // Initial impact: brick hits and bulges outward
+        s=lerp(1.0,1.22,localT/0.18);
+      } else if(localT<0.55){
+        // Settle: bulge collapses past 1.0 then springs back
+        s=lerp(1.22,0.94,(localT-0.18)/0.37);
+      } else {
+        // Final settle to perfect fit
+        s=lerp(0.94,1.0,(localT-0.55)/0.45);
+      }
       floatRoot.position.x=gapWorldX;
       floatRoot.position.z=gapWorldZ;
       floatRoot.position.y=gapWorldY;
-      floatRoot.scaling=BABYLON.Vector3.One();
-      floatRoot.rotation.y=0;
-      floatRoot.rotation.x=0;
-      floatRoot.rotation.z=0;
+      floatRoot.scaling=new BABYLON.Vector3(s,s,s);
+      floatRoot.rotation.y=0;floatRoot.rotation.x=0;floatRoot.rotation.z=0;
 
       if(!matchAnim.docked){
         matchAnim.docked=true;
-        shakeMag=0.25;
-        vibrate(40);
+        // BIG satisfying thud — much stronger than before
+        shakeMag=Math.max(shakeMag,0.6);
+        // Brief slow-mo (0.08s) so player sees the fit
+        slowMo=Math.max(slowMo,0.08);
+        vibrate([60,20,30]);
+        // Layered dock sound: high click + low thud body
         playSound('dock');
+        // Spawn a satisfying ring burst at the gap point
+        spawnDockBurst(gapWorldX,gapWorldY,gapWorldZ);
+        // Quick yellow-white flash (impact pop)
+        $flash.style.background='#FFFFFF';$flash.style.opacity='0.25';
+        setTimeout(()=>$flash.style.opacity='0',90);
+        // Screen color flash in gap color (delayed — under the white)
+        setTimeout(()=>{$flash.style.background=BCOLS_HEX[wallGapColorIdx];$flash.style.opacity='0.18';setTimeout(()=>$flash.style.opacity='0',180)},100);
+        // Camera mini-jolt
+        camera.fov=0.84;
       }
     }
 
-    // Phase 3 (0.45→0.5): EXPLODE
-    else if(matchAnim.t<0.5){
+    // Phase 3 (0.55→0.62): EXPLODE — wall shatters
+    else if(matchAnim.t<0.62){
       if(!matchAnim.exploded){
         matchAnim.exploded=true;
-        shakeMag=1.2;
-        $flash.style.background=BCOLS_HEX[wallGapColorIdx];$flash.style.opacity='0.3';
-        setTimeout(()=>$flash.style.opacity='0',180);
+        shakeMag=1.4;
+        $flash.style.background=BCOLS_HEX[wallGapColorIdx];$flash.style.opacity='0.32';
+        setTimeout(()=>$flash.style.opacity='0',200);
         spawnExplosion();
         camera.fov=0.8;
         vibrate([30,15,60,15,80]);
@@ -1614,11 +1711,11 @@ function update(dt){
       wallRoot.setEnabled(false);
     }
 
-    // Phase 4 (0.5→1.0): Debris + recovery + next wall
+    // Phase 4 (0.62→1.0): Debris + recovery + next wall
     else {
       floatRoot.setEnabled(false);
       wallRoot.setEnabled(false);
-      const recovT=clamp((matchAnim.t-0.5)/0.3,0,1);
+      const recovT=clamp((matchAnim.t-0.62)/0.3,0,1);
       camera.fov=lerp(0.8,1.05,recovT*recovT);
 
       if(matchAnim.t>=1.0){
@@ -1667,9 +1764,12 @@ function update(dt){
         }
         // Milestone celebrations
         triggerMilestone(wallsCleared);
-        floatRoot.setEnabled(true);wallRoot.setEnabled(true);
         camera.fov=1.05;
-        generateWall();updateHUD();
+        // Build new wall FIRST (clears old meshes + creates new ones), then re-enable.
+        // Otherwise the previous-wall meshes briefly flash back in before being replaced.
+        generateWall();
+        floatRoot.setEnabled(true);wallRoot.setEnabled(true);
+        updateHUD();
       } // end if t>=1
     } // end else (phase 4)
   } // end matchAnim.active
